@@ -164,33 +164,51 @@ def run_loop(config, api):
                     tmp = start
                     remain_size = size
                     ret = b""
-                    while remain_size > 0:
-                        read_size = min(remain_size, RPM_MAX_SIZE)
-                        result = readprocessmemory(tmp, read_size)
-                        if result != False:
-                            ret = result
-                            data_type = answers["find_data_type"]
-                            for _type in data_type:
-                                if _type == "word":
-                                    bytecode = struct.pack("<H", int(input_value))
-                                    bytecode = re.escape(bytecode)
-                                elif _type == "dword":
-                                    bytecode = struct.pack("<I", int(input_value))
-                                    bytecode = re.escape(bytecode)
-                                elif _type == "qword":
-                                    bytecode = struct.pack("<Q", int(input_value))
-                                    bytecode = re.escape(bytecode)
-                                elif _type == "utf8":
-                                    bytecode = input_value.encode()
-                                    bytecode = re.escape(bytecode)
-                                elif _type == "regex":
-                                    bytecode = input_value.encode()
-                                for match in re.finditer(bytecode, ret):
-                                    ADDRESS_LIST.append(tmp + match.start())
-                        tmp += read_size
-                        readed_size += read_size
-                        remain_size -= read_size
-                        bar.update(read_size)
+                    data_type = answers["find_data_type"]
+                    if len(data_type) > 1 or "regex" in data_type:
+                        while remain_size > 0:
+                            read_size = min(remain_size, RPM_MAX_SIZE)
+                            result = readprocessmemory(tmp, read_size)
+                            if result != False:
+                                ret = result
+                                for _type in data_type:
+                                    if _type == "word":
+                                        bytecode = struct.pack("<H", int(input_value))
+                                        bytecode = re.escape(bytecode)
+                                    elif _type == "dword":
+                                        bytecode = struct.pack("<I", int(input_value))
+                                        bytecode = re.escape(bytecode)
+                                    elif _type == "qword":
+                                        bytecode = struct.pack("<Q", int(input_value))
+                                        bytecode = re.escape(bytecode)
+                                    elif _type == "utf8":
+                                        bytecode = input_value.encode()
+                                        bytecode = re.escape(bytecode)
+                                    elif _type == "regex":
+                                        bytecode = input_value.encode()
+                                    for match in re.finditer(bytecode, ret):
+                                        ADDRESS_LIST.append(tmp + match.start())
+                            tmp += read_size
+                            readed_size += read_size
+                            remain_size -= read_size
+                            bar.update(read_size)
+                    else:
+                        _type = data_type[0]
+                        if _type == "word":
+                            bytecode = struct.pack("<H", int(input_value))
+                        elif _type == "dword":
+                            bytecode = struct.pack("<I", int(input_value))
+                        elif _type == "qword":
+                            bytecode = struct.pack("<Q", int(input_value))
+                        elif _type == "utf8":
+                            bytecode = input_value.encode()
+                        addresses = api.MemoryScan(start,size,bytecode.hex())
+                        if addresses != None:
+                            for address in addresses:
+                                ad = int(address["address"],16)
+                                sz = address["size"]
+                                ADDRESS_LIST.append(ad)
+                        bar.update(size)
             print(f"HIT COUNT:{len(ADDRESS_LIST)}!!\n")
 
         elif command == "filter":
@@ -218,10 +236,10 @@ def run_loop(config, api):
                             bytecode = input_value.encode()
                             bytecode = re.escape(bytecode)
                             read_size = len(bytecode)
-                    ret = readprocessmemory(address, read_size)
-                    if ret != False:
-                        for match in re.finditer(bytecode, ret):
-                            FILTER_LIST.append(address)
+                        ret = readprocessmemory(address, read_size)
+                        if ret != False:
+                            for match in re.finditer(bytecode, ret):
+                                FILTER_LIST.append(address)
                     bar.update(1)
             ADDRESS_LIST = FILTER_LIST
             print(f"FILTERD:{len(ADDRESS_LIST)}/{old_size}!!\n")

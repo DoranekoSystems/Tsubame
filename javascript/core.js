@@ -195,20 +195,28 @@ rpc.exports = {
             if (regionList[i].file.path) {
               skip_flag = true;
             }
-          } catch (e) {}
+          } catch (e) { }
         } else if (target_os == 'android' && ignore_mapped_file) {
           try {
             if (regionList[i].file.path) {
               skip_flag = true;
             }
-          } catch (e) {}
+          } catch (e) { }
         }
         if (!skip_flag) {
           regionInfos.push([baseaddress, size]);
-        }else{
+        } else {
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     return regionInfos;
   },
+  memoryscan: function (base, size, pattern) {
+    try {
+      var scanSync = Memory.scanSync(ptr(base), size, pattern);
+    } catch (e) {
+      return null;
+    }
+    return scanSync
+  }
 };
