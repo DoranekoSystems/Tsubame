@@ -22,7 +22,8 @@ FILTERD:1/3834!!
   3) patch
   4) dump
   5) list
-  6) exit
+  6) view
+  7) exit
 ```
 
 # Usage
@@ -51,3 +52,11 @@ python main.py -p ProcessId
 
 # Known Issues
 - filter is slow
+
+# License
+
+## MemoryView
+
+The original software is available at  
+https://github.com/walterdejong/hexview.    
+This project is a partial enhancement of the above great software.  

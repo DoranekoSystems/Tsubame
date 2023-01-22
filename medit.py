@@ -9,13 +9,15 @@ import hexdump
 import lz4.block
 from define import OS, MODE
 from colorama import Fore, Back, Style
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/memoryview')
+from hexview import memory_view_mode
 
 questions = [
     {
         "type": "rawlist",
         "name": "command",
         "message": "Please Input a command.",
-        "choices": ["find", "filter", "patch", "dump", "list", "exit"],
+        "choices": ["find", "filter", "patch", "dump", "list","view","exit"],
         "default": None,
     },
     {
@@ -85,6 +87,13 @@ questions = [
         "default": "",
         "when": lambda answers: answers["list_data_type"] == "regex",
     },
+    {
+        "type": "input",
+        "name": "view_input_value",
+        "message": "Please Input a Address.",
+        "default": "",
+        "when": lambda answers: answers["command"] == "view",
+    }
 ]
 
 
@@ -304,6 +313,10 @@ def run_loop(config, api):
 
                     print(Fore.GREEN + f"{i+1}:{hex(address)}")
                     print(Fore.RESET + str(value))
+
+        elif command == "view":
+            address = int(answers["view_input_value"],16)
+            memory_view_mode(API,address)
 
         elif command == "exit":
             print(Fore.BLACK + "exit.")
