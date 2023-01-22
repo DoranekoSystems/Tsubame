@@ -1,6 +1,7 @@
 # frida-medit
-simple cui-based process memory scanner.
+cross-platform cui-based process memory analyzer.
 
+## Memory Scanner
 ```
 ? Please Input a command. find
 ? Please Input a data type. ['dword']
@@ -15,7 +16,7 @@ HIT COUNT:3834!!
 progress: 100%|█████████████████████████████████████████████████████████████████████████████████████████████|
 FILTERD:1/3834!!
 
---------------------------------------------------------
+-------------------------------------------------
 ? Please Input a command. 3
   1) find
   2) filter
@@ -26,12 +27,20 @@ FILTERD:1/3834!!
   7) exit
 ```
 
+## Realtime Memory Viewer
+
+<img width="605" alt="img" src="https://user-images.githubusercontent.com/96031346/213922729-0e0c9fff-f587-4806-ac26-0b1daac3e40f.png">
+
 # Usage
 
 Install python library.
 
 ```
-pip install -r requirements.txt
+# windows
+pip install -r requirements_windows.txt
+
+# other
+pip instlal -r requirements.txt
 ```
 
 
