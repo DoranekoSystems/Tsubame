@@ -1,0 +1,7 @@
+toml
+lz4
+hexdump
+tqdm
+colorama
+InquirerPy
+frida

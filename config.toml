@@ -1,0 +1,12 @@
+[general]
+target =  ""
+targetOS = "ios"
+mode =  "attach"
+binary_path = ""
+
+[ipconfig]
+frida_server_ip =  ""
+
+[extended_function]
+ignore_mapped_file = false
+custom_read_memory = false
