@@ -4,12 +4,15 @@ import sys
 import time
 import re
 import struct
+from threading import Thread
+import subprocess
 from tqdm import tqdm
 import hexdump
 import lz4.block
 from define import OS, MODE
 from colorama import Fore, Back, Style
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/memoryview')
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/memoryview")
 from hexview import memory_view_mode
 
 questions = [
@@ -17,7 +20,7 @@ questions = [
         "type": "rawlist",
         "name": "command",
         "message": "Please Input a command.",
-        "choices": ["find", "filter", "patch", "dump", "list","view","exit"],
+        "choices": ["find", "filter", "patch", "dump", "list", "view", "exit"],
         "default": None,
     },
     {
@@ -93,7 +96,7 @@ questions = [
         "message": "Please Input a Address.",
         "default": "",
         "when": lambda answers: answers["command"] == "view",
-    }
+    },
 ]
 
 
@@ -111,6 +114,7 @@ custom_style = {
 ADDRESS_LIST = []
 CUSTOM_READ_MEMORY = False
 TARGET_OS = None
+MULTIPLE_WINDOW = False
 API = None
 RPM_MAX_SIZE = 524288
 
@@ -149,13 +153,14 @@ def readprocessmemory(address, size):
     return ret
 
 
-def run_loop(config, api):
+def run_loop(pid, config, api):
     global ADDRESS_LIST
     global CUSTOM_READ_MEMORY
     global TARGET_OS
     global API
     TARGET_OS = config["general"]["targetOS"]
     CUSTOM_READ_MEMORY = config["extended_function"]["custom_read_memory"]
+    MULTIPLE_WINDOW = config["memoryview"]["multiple_window"]
     API = api
     while True:
         answers = prompt(questions, style=custom_style)
@@ -211,10 +216,10 @@ def run_loop(config, api):
                             bytecode = struct.pack("<Q", int(input_value))
                         elif _type == "utf8":
                             bytecode = input_value.encode()
-                        addresses = api.MemoryScan(start,size,bytecode.hex())
+                        addresses = api.MemoryScan(start, size, bytecode.hex())
                         if addresses != None:
                             for address in addresses:
-                                ad = int(address["address"],16)
+                                ad = int(address["address"], 16)
                                 sz = address["size"]
                                 ADDRESS_LIST.append(ad)
                         bar.update(size)
@@ -315,8 +320,14 @@ def run_loop(config, api):
                     print(Fore.RESET + str(value))
 
         elif command == "view":
-            address = int(answers["view_input_value"],16)
-            memory_view_mode(API,address)
+            address = int(answers["view_input_value"], 16)
+            if MULTIPLE_WINDOW:
+                def run():
+                    subprocess.call(f"python main.py -p {pid} --memoryview {hex(address)}", creationflags=subprocess.CREATE_NEW_CONSOLE)
+                t1 = Thread(target=run)
+                t1.start()
+            else:
+                memory_view_mode(api,addresss)
 
         elif command == "exit":
             print(Fore.BLACK + "exit.")

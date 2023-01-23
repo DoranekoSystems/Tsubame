@@ -21,7 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-'''classes and routines for text mode screens'''
+"""classes and routines for text mode screens"""
 
 import curses
 import os
@@ -37,14 +37,7 @@ VIDEO = None
 STDSCR = None
 
 # color codes
-(BLACK,
- BLUE,
- GREEN,
- CYAN,
- RED,
- MAGENTA,
- YELLOW,
- WHITE) = range(0, 8)
+(BLACK, BLUE, GREEN, CYAN, RED, MAGENTA, YELLOW, WHITE) = range(0, 8)
 BOLD = 8
 
 # list of curses color codes
@@ -66,30 +59,41 @@ CURSES_LINES = None
 
 # curses key codes get translated to strings by getch()
 # There is no support for F-keys! Functions keys are evil on Macs
-KEY_ESC = 'ESC'
-KEY_RETURN = 'RETURN'
-KEY_TAB = 'TAB'
-KEY_BTAB = 'BTAB'
-KEY_LEFT = 'LEFT'
-KEY_RIGHT = 'RIGHT'
-KEY_UP = 'UP'
-KEY_DOWN = 'DOWN'
-KEY_PAGEUP = 'PAGEUP'
-KEY_PAGEDOWN = 'PAGEDOWN'
-KEY_HOME = 'HOME'
-KEY_END = 'END'
-KEY_DEL = 'DEL'
-KEY_BS = 'BS'
+KEY_ESC = "ESC"
+KEY_RETURN = "RETURN"
+KEY_TAB = "TAB"
+KEY_BTAB = "BTAB"
+KEY_LEFT = "LEFT"
+KEY_RIGHT = "RIGHT"
+KEY_UP = "UP"
+KEY_DOWN = "DOWN"
+KEY_PAGEUP = "PAGEUP"
+KEY_PAGEDOWN = "PAGEDOWN"
+KEY_HOME = "HOME"
+KEY_END = "END"
+KEY_DEL = "DEL"
+KEY_BS = "BS"
 
-KEY_TABLE = {'0x1b': KEY_ESC, '0x0a': KEY_RETURN, '0x0d': KEY_RETURN,
-             '0x09': KEY_TAB, '0x161': KEY_BTAB,
-             '0x102': KEY_DOWN, '0x103': KEY_UP,
-             '0x104': KEY_LEFT, '0x105': KEY_RIGHT,
-             '0x152': KEY_PAGEDOWN, '0x153': KEY_PAGEUP,
-             '0x106': KEY_HOME, '0x168': KEY_END,
-             '0x14a': KEY_DEL, '0x107': KEY_BS, '0x7f': KEY_BS}
+KEY_TABLE = {
+    "0x1b": KEY_ESC,
+    "0x0a": KEY_RETURN,
+    "0x0d": KEY_RETURN,
+    "0x09": KEY_TAB,
+    "0x161": KEY_BTAB,
+    "0x102": KEY_DOWN,
+    "0x103": KEY_UP,
+    "0x104": KEY_LEFT,
+    "0x105": KEY_RIGHT,
+    "0x152": KEY_PAGEDOWN,
+    "0x153": KEY_PAGEUP,
+    "0x106": KEY_HOME,
+    "0x168": KEY_END,
+    "0x14a": KEY_DEL,
+    "0x107": KEY_BS,
+    "0x7f": KEY_BS,
+}
 
-REGEX_HOTKEY = re.compile(r'.*<((Ctrl-)?[!-~])>.*$')
+REGEX_HOTKEY = re.compile(r".*<((Ctrl-)?[!-~])>.*$")
 
 # window stack
 STACK = None
@@ -100,27 +104,29 @@ DEBUG_LOG = []
 # program states
 # these enums are all negative; cursor choices are positive (inc. 0)
 # FIXME cleanup app codes list, use the shorter codes
-(RETURN_TO_PREVIOUS,
- GOTO_MENUBAR,
- MENU_LEFT,
- MENU_RIGHT,
- MENU_CLOSE,
- CANCEL,
- ENTER,
- BACK,
- NEXT,
- EXIT,
- QUIT) = range(-1, -12, -1)
+(
+    RETURN_TO_PREVIOUS,
+    GOTO_MENUBAR,
+    MENU_LEFT,
+    MENU_RIGHT,
+    MENU_CLOSE,
+    CANCEL,
+    ENTER,
+    BACK,
+    NEXT,
+    EXIT,
+    QUIT,
+) = range(-1, -12, -1)
 
 
 def debug(msg):
-    '''keep message in debug log'''
+    """keep message in debug log"""
 
     DEBUG_LOG.append(msg)
 
 
 def dump_debug():
-    '''dump out the debug log'''
+    """dump out the debug log"""
 
     global DEBUG_LOG
 
@@ -131,7 +137,7 @@ def dump_debug():
 
 
 class ScreenBuf:
-    '''base class for screen buffers
+    """base class for screen buffers
     It basically implements a monochrome screenbuf in which
     colors are ignored. You should however use either
     MonoScreenBuf or ColorScreenBuf and not directly instantiate
@@ -139,7 +145,7 @@ class ScreenBuf:
 
     The text buffer holds one byte per character in 7 bits ASCII
     If the 8th bit is set, it is a special character (eg. a curses line)
-    '''
+    """
 
     # codepage defines the character set
     # the original charset of as IBM PC VGA screen was cp437
@@ -147,10 +153,10 @@ class ScreenBuf:
     # so use latin_1 or cp1252
     # Note: we must use single-byte character encoding because we use a bytearray
     # (which is a bad choice in today's world, but ScreenBuf mimics VGA)
-    CODEPAGE = 'cp1252'
+    CODEPAGE = "cp1252"
 
     def __init__(self, w, h):
-        '''initialize'''
+        """initialize"""
 
         assert w > 0
         assert h > 0
@@ -161,11 +167,11 @@ class ScreenBuf:
         self.textbuf = bytearray(w * h)
 
     def __getitem__(self, idx):
-        '''Returns tuple: (ch, color) at idx
+        """Returns tuple: (ch, color) at idx
         idx may be an offset or tuple: (x, y) position
 
         Raises IndexError, ValueError on invalid index
-        '''
+        """
 
         if isinstance(idx, int):
             offset = idx
@@ -175,15 +181,15 @@ class ScreenBuf:
             offset = self.w * y + x
 
         else:
-            raise ValueError('invalid argument')
+            raise ValueError("invalid argument")
 
         ch = self.textbuf[offset]
         if ch == 0:
             # blank
-            ch = ' '
-        elif ch > 0x7f:
+            ch = " "
+        elif ch > 0x7F:
             # special curses character
-            ch &= 0x7f
+            ch &= 0x7F
             ch |= 0x400000
         else:
             # make string
@@ -192,12 +198,12 @@ class ScreenBuf:
         return ch, 0
 
     def __setitem__(self, idx, value):
-        '''put tuple: (ch, color) at idx
+        """put tuple: (ch, color) at idx
         idx may be an offset or tuple: (x, y) position
 
         Raises IndexError, ValueError on invalid index
         or ValueError on invalid value
-        '''
+        """
 
         ch, _ = value
 
@@ -205,7 +211,7 @@ class ScreenBuf:
             ch = ord(ch)
         elif ch > 0x400000:
             # special curses character
-            ch &= 0x7f
+            ch &= 0x7F
             ch |= 0x80
 
         if isinstance(idx, int):
@@ -216,38 +222,38 @@ class ScreenBuf:
             offset = self.w * y + x
 
         else:
-            raise ValueError('invalid argument')
+            raise ValueError("invalid argument")
 
         self.textbuf[offset] = ch
 
     def puts(self, x, y, msg, color=0):
-        '''write message into buffer at x, y'''
+        """write message into buffer at x, y"""
 
         offset = self.w * y + x
         w = len(msg)
-        self.textbuf[offset:offset + w] = bytes(msg, ScreenBuf.CODEPAGE)
+        self.textbuf[offset : offset + w] = bytes(msg, ScreenBuf.CODEPAGE)
 
     def hline(self, x, y, w, ch, color=0):
-        '''repeat character horizontally'''
+        """repeat character horizontally"""
 
         if isinstance(ch, str):
             ch = ord(ch)
         elif ch > 0x400000:
             # special curses character
-            ch &= 0x7f
+            ch &= 0x7F
             ch |= 0x80
 
         offset = self.w * y + x
-        self.textbuf[offset:offset + w] = bytes(chr(ch) * w, ScreenBuf.CODEPAGE)
+        self.textbuf[offset : offset + w] = bytes(chr(ch) * w, ScreenBuf.CODEPAGE)
 
     def vline(self, x, y, h, ch, color=0):
-        '''repeat character horizontally'''
+        """repeat character horizontally"""
 
         if isinstance(ch, str):
             ch = ord(ch)
         elif ch > 0x400000:
             # special curses character
-            ch &= 0x7f
+            ch &= 0x7F
             ch |= 0x80
 
         offset = self.w * y + x
@@ -256,14 +262,14 @@ class ScreenBuf:
             offset += self.w
 
     def memmove(self, dst_idx, src_idx, num):
-        '''copy num bytes at src_idx to dst_idx'''
+        """copy num bytes at src_idx to dst_idx"""
 
         dst2 = dst_idx + num
         src2 = src_idx + num
         self.textbuf[dst_idx:dst2] = self.textbuf[src_idx:src2]
 
     def copyrect(self, dx, dy, src, sx=0, sy=0, sw=0, sh=0):
-        '''copy src rect sx,sy,sw,sh to dest self at dx,dy'''
+        """copy src rect sx,sy,sw,sh to dest self at dx,dy"""
 
         assert isinstance(src, ScreenBuf)
         assert dx >= 0
@@ -286,50 +292,47 @@ class ScreenBuf:
 
         # local function
         def copyline(dst, dx, dy, src, sx, sy, sw):
-            '''copy line at sx,sy to dest dx,dy'''
+            """copy line at sx,sy to dest dx,dy"""
 
             si = sy * src.w + sx
             di = dy * dst.w + dx
-            dst.textbuf[di:di + sw] = src.textbuf[si:si + sw]
+            dst.textbuf[di : di + sw] = src.textbuf[si : si + sw]
 
         # copy rect by copying line by line
         for j in range(0, sh):
             copyline(self, dx, dy + j, src, sx, sy + j, sw)
 
 
-
 class MonoScreenBuf(ScreenBuf):
-    '''monochrome screen buffer has no colors'''
-
-
+    """monochrome screen buffer has no colors"""
 
 
 class ColorScreenBuf(ScreenBuf):
-    '''a color screen buffer consist of two planes:
+    """a color screen buffer consist of two planes:
     a text buffer and a color buffer
     The text buffer holds one byte per character in 7 bits ASCII
     If the 8th bit is set, it is a special character (eg. a curses line)
     The color buffer holds one byte per color
     encoded as (bg << 4) | bold | fg
-    '''
+    """
 
     # There are some asserts, but in general,
     # ScreenBuf shouldn't care about buffer overruns or clipping
     # because  a) that's a bug   b) performance   c) handled by class Video
 
     def __init__(self, w, h):
-        '''initialize'''
+        """initialize"""
 
         super().__init__(w, h)
 
         self.colorbuf = bytearray(w * h)
 
     def __getitem__(self, idx):
-        '''Returns tuple: (ch, color) at idx
+        """Returns tuple: (ch, color) at idx
         idx may be an offset or tuple: (x, y) position
 
         Raises IndexError, ValueError on invalid index
-        '''
+        """
 
         if isinstance(idx, int):
             offset = idx
@@ -339,15 +342,15 @@ class ColorScreenBuf(ScreenBuf):
             offset = self.w * y + x
 
         else:
-            raise ValueError('invalid argument')
+            raise ValueError("invalid argument")
 
         ch = self.textbuf[offset]
         if ch == 0:
             # blank
-            ch = ' '
-        elif ch > 0x7f:
+            ch = " "
+        elif ch > 0x7F:
             # special curses character
-            ch &= 0x7f
+            ch &= 0x7F
             ch |= 0x400000
         else:
             # make string
@@ -357,12 +360,12 @@ class ColorScreenBuf(ScreenBuf):
         return ch, color
 
     def __setitem__(self, idx, value):
-        '''put tuple: (ch, color) at idx
+        """put tuple: (ch, color) at idx
         idx may be an offset or tuple: (x, y) position
 
         Raises IndexError, ValueError on invalid index
         or ValueError on invalid value
-        '''
+        """
 
         ch, color = value
 
@@ -370,7 +373,7 @@ class ColorScreenBuf(ScreenBuf):
             ch = ord(ch)
         elif ch > 0x400000:
             # special curses character
-            ch &= 0x7f
+            ch &= 0x7F
             ch |= 0x80
 
         if isinstance(idx, int):
@@ -381,43 +384,45 @@ class ColorScreenBuf(ScreenBuf):
             offset = self.w * y + x
 
         else:
-            raise ValueError('invalid argument')
+            raise ValueError("invalid argument")
         try:
             self.textbuf[offset] = ch
         except:
             pass
         self.colorbuf[offset] = color
 
-    def puts(self, x, y, msg, color):           # pylint: disable=signature-differs
-        '''write message into buffer at x, y'''
+    def puts(self, x, y, msg, color):  # pylint: disable=signature-differs
+        """write message into buffer at x, y"""
 
         offset = self.w * y + x
         w = len(msg)
-        self.textbuf[offset:offset + w] = bytes(msg, ScreenBuf.CODEPAGE)
-        self.colorbuf[offset:offset + w] = bytes(chr(color) * w, ScreenBuf.CODEPAGE)
+        self.textbuf[offset : offset + w] = bytes(msg, ScreenBuf.CODEPAGE)
+        self.colorbuf[offset : offset + w] = bytes(chr(color) * w, ScreenBuf.CODEPAGE)
 
-    def hline(self, x, y, w, ch, color):        # pylint: disable=signature-differs
-        '''repeat character horizontally'''
+    def hline(self, x, y, w, ch, color):  # pylint: disable=signature-differs
+        """repeat character horizontally"""
         if isinstance(ch, str):
             ch = ord(ch)
         elif ch > 0x400000:
             # special curses character
-            ch &= 0x7f
+            ch &= 0x7F
             ch |= 0x80
         offset = self.w * y + x
-        self.textbuf[offset:offset + w] = (chr(ch) * w).encode()#bytes(chr(ch) * w, ScreenBuf.CODEPAGE)
-        self.colorbuf[offset:offset + w] = bytes(chr(color) * w, ScreenBuf.CODEPAGE)
+        self.textbuf[offset : offset + w] = (
+            chr(ch) * w
+        ).encode()  # bytes(chr(ch) * w, ScreenBuf.CODEPAGE)
+        self.colorbuf[offset : offset + w] = bytes(chr(color) * w, ScreenBuf.CODEPAGE)
 
-    def vline(self, x, y, h, ch, color):        # pylint: disable=signature-differs
-        '''repeat character horizontally'''
+    def vline(self, x, y, h, ch, color):  # pylint: disable=signature-differs
+        """repeat character horizontally"""
 
         if isinstance(ch, str):
             ch = ord(ch)
         elif ch > 0x400000:
             # special curses character
-            ch &= 0x7f
+            ch &= 0x7F
             ch |= 0x80
-        
+
         offset = self.w * y + x
         for _ in range(0, h):
             try:
@@ -428,7 +433,7 @@ class ColorScreenBuf(ScreenBuf):
             offset += self.w
 
     def memmove(self, dst_idx, src_idx, num):
-        '''copy num bytes at src_idx to dst_idx'''
+        """copy num bytes at src_idx to dst_idx"""
 
         dst2 = dst_idx + num
         src2 = src_idx + num
@@ -436,7 +441,7 @@ class ColorScreenBuf(ScreenBuf):
         self.colorbuf[dst_idx:dst2] = self.colorbuf[src_idx:src2]
 
     def copyrect(self, dx, dy, src, sx=0, sy=0, sw=0, sh=0):
-        '''copy src rect sx,sy,sw,sh to dest self at dx,dy'''
+        """copy src rect sx,sy,sw,sh to dest self at dx,dy"""
 
         assert isinstance(src, ScreenBuf)
         assert dx >= 0
@@ -459,24 +464,23 @@ class ColorScreenBuf(ScreenBuf):
 
         # local function
         def copyline(dst, dx, dy, src, sx, sy, sw):
-            '''copy line at sx,sy to dest dx,dy'''
+            """copy line at sx,sy to dest dx,dy"""
 
             si = sy * src.w + sx
             di = dy * dst.w + dx
-            dst.textbuf[di:di + sw] = src.textbuf[si:si + sw]
-            dst.colorbuf[di:di + sw] = src.colorbuf[si:si + sw]
+            dst.textbuf[di : di + sw] = src.textbuf[si : si + sw]
+            dst.colorbuf[di : di + sw] = src.colorbuf[si : si + sw]
 
         # copy rect by copying line by line
         for j in range(0, sh):
             copyline(self, dx, dy + j, src, sx, sy + j, sw)
 
 
-
 class Rect:
-    '''represents a rectangle'''
+    """represents a rectangle"""
 
     def __init__(self, x, y, w, h):
-        '''initialize'''
+        """initialize"""
 
         assert w > 0
         assert h > 0
@@ -487,17 +491,17 @@ class Rect:
         self.h = h
 
     def __str__(self):
-        '''Returns string representation'''
+        """Returns string representation"""
 
-        return '{{{}, {}, {}, {}}}'.format(self.x, self.y, self.w, self.h)
+        return "{{{}, {}, {}, {}}}".format(self.x, self.y, self.w, self.h)
 
     def copy(self):
-        '''Returns a copy'''
+        """Returns a copy"""
 
         return Rect(self.x, self.y, self.w, self.h)
 
     def clamp(self, x, y):
-        '''Returns clamped tuple: x, y'''
+        """Returns clamped tuple: x, y"""
 
         if x < self.x:
             x = self.x
@@ -517,19 +521,21 @@ class Rect:
     # the result by rect.x, rect.y
 
     def clip_point(self, x, y):
-        '''clip point at relative x, y against rect
+        """clip point at relative x, y against rect
         Returns True if point is in the rect;
         if True then the point is visible
-        '''
+        """
 
         return 0 <= x < self.w and 0 <= y < self.h
 
     def clip_hline(self, x, y, w):
-        '''clip horizontal line against rect
+        """clip horizontal line against rect
         If visible, returns clipped tuple: True, x, y, w
-        '''
+        """
 
-        if x + w < 0 or x >= self.w or y < 0 or y >= self.h:        # pylint: disable=chained-comparison
+        if (
+            x + w < 0 or x >= self.w or y < 0 or y >= self.h
+        ):  # pylint: disable=chained-comparison
             return False, -1, -1, -1
 
         if x < 0:
@@ -542,11 +548,13 @@ class Rect:
         return True, x, y, w
 
     def clip_vline(self, x, y, h):
-        '''clip vertical line against rect
+        """clip vertical line against rect
         If visible, returns clipped tuple: True, x, y, h
-        '''
+        """
 
-        if x < 0 or x >= self.w or y + h < 0 or y >= self.h:        # pylint: disable=chained-comparison
+        if (
+            x < 0 or x >= self.w or y + h < 0 or y >= self.h
+        ):  # pylint: disable=chained-comparison
             return False, -1, -1, -1
 
         if y < 0:
@@ -559,11 +567,13 @@ class Rect:
         return True, x, y, h
 
     def clip_rect(self, x, y, w, h):
-        '''clip rectangle against rect
+        """clip rectangle against rect
         If visible, returns clipped tuple: True, x, y, w, h
-        '''
+        """
 
-        if x + w < 0 or x >= self.w or y + h < 0 or y >= self.h:    # pylint: disable=chained-comparison
+        if (
+            x + w < 0 or x >= self.w or y + h < 0 or y >= self.h
+        ):  # pylint: disable=chained-comparison
             return False, -1, -1, -1, -1
 
         if x < 0:
@@ -583,12 +593,11 @@ class Rect:
         return True, x, y, w, h
 
 
-
 class Video:
-    '''text mode video'''
+    """text mode video"""
 
     def __init__(self):
-        '''initialize'''
+        """initialize"""
 
         if STDSCR is None:
             init_curses()
@@ -604,16 +613,16 @@ class Video:
         self.curses_color = curses_color(WHITE, BLACK, bold=False)
 
     def set_color(self, fg, bg=None, bold=True, alt=False):
-        '''set current color
+        """set current color
         Returns the combined color code
-        '''
+        """
 
         self.color = video_color(fg, bg, bold)
         self.curses_color = curses_color(fg, bg, bold, alt)
         return self.color
 
     def putch(self, x, y, ch, color=-1, alt=False):
-        '''put character at x, y'''
+        """put character at x, y"""
 
         # clipping
         if not self.rect.clip_point(x, y):
@@ -629,7 +638,7 @@ class Video:
         self.curses_putch(x, y, ch, attr)
 
     def puts(self, x, y, msg, color=-1, alt=False):
-        '''write message at x, y'''
+        """write message at x, y"""
 
         visible, cx, cy, cw = self.rect.clip_hline(x, y, len(msg))
         if not visible:
@@ -656,7 +665,7 @@ class Video:
         self.curses_puts(cx, cy, msg, attr)
 
     def curses_putch(self, x, y, ch, attr=None, alt=False):
-        '''put character into the curses screen x, y'''
+        """put character into the curses screen x, y"""
 
         # curses.addch() has issues with drawing in the right bottom corner
         # because it wants to scroll, but it can't
@@ -675,7 +684,7 @@ class Video:
             STDSCR.addch(y, x, ch, attr)
 
     def curses_puts(self, x, y, msg, attr=None):
-        '''print message into the curses screen at x, y'''
+        """print message into the curses screen at x, y"""
 
         # curses.addstr() has issues with drawing in the right bottom corner
         # because it wants to scroll, but it can't
@@ -694,7 +703,7 @@ class Video:
             STDSCR.addstr(y, x, msg, attr)
 
     def hline(self, x, y, w, ch, color=-1, alt=False):
-        '''draw horizontal line at x, y'''
+        """draw horizontal line at x, y"""
 
         visible, x, y, w = self.rect.clip_hline(x, y, w)
         if not visible:
@@ -712,7 +721,7 @@ class Video:
         STDSCR.hline(y, x, ch, w, attr)
 
     def vline(self, x, y, h, ch, color=-1, alt=False):
-        '''draw vertical line at x, y'''
+        """draw vertical line at x, y"""
 
         visible, x, y, h = self.rect.clip_vline(x, y, h)
         if not visible:
@@ -730,7 +739,7 @@ class Video:
         STDSCR.vline(y, x, ch, h, attr)
 
     def hsplit(self, x, y, w, ch, color=-1, alt=False):
-        '''draw a horizontal split'''
+        """draw a horizontal split"""
 
         self.hline(x + 1, y, w - 2, curses.ACS_HLINE, color, alt)
         # put tee characters on the sides
@@ -738,7 +747,7 @@ class Video:
         self.putch(x + w - 1, y, curses.ACS_RTEE, color, alt)
 
     def vsplit(self, x, y, h, ch, color=-1, alt=False):
-        '''draw a vertical split'''
+        """draw a vertical split"""
 
         self.vline(x, y + 1, h - 2, curses.ACS_VLINE, color, alt)
         # put tee characters on the sides
@@ -746,7 +755,7 @@ class Video:
         self.putch(x, y + h - 1, curses.ACS_BTEE, color, alt)
 
     def fillrect(self, x, y, w, h, color=-1, alt=False):
-        '''draw rectangle at x, y'''
+        """draw rectangle at x, y"""
 
         visible, x, y, w, h = self.rect.clip_rect(x, y, w, h)
         if not visible:
@@ -759,11 +768,11 @@ class Video:
             attr = curses_color(color, alt=alt)
 
         for j in range(0, h):
-            self.screenbuf.hline(x, y + j, w, ' ', color)
-            STDSCR.hline(y + j, x, ' ', w, attr)
+            self.screenbuf.hline(x, y + j, w, " ", color)
+            STDSCR.hline(y + j, x, " ", w, attr)
 
     def border(self, x, y, w, h, color=-1, alt=False):
-        '''draw rectangle border'''
+        """draw rectangle border"""
 
         visible, cx, cy, cw, ch = self.rect.clip_rect(x, y, w, h)
         if not visible:
@@ -818,7 +827,7 @@ class Video:
             self.curses_putch(rx, by, curses.ACS_LRCORNER, attr)
 
     def color_putch(self, x, y, color=-1, alt=False):
-        '''put color at x, y'''
+        """put color at x, y"""
 
         if not self.rect.clip_point(x, y):
             return
@@ -838,7 +847,7 @@ class Video:
         self.curses_putch(x, y, ch, attr)
 
     def color_hline(self, x, y, w, color=-1, alt=False):
-        '''draw horizontal color line'''
+        """draw horizontal color line"""
 
         visible, x, y, w = self.rect.clip_hline(x, y, w)
         if not visible:
@@ -861,7 +870,7 @@ class Video:
             self.curses_putch(x + i, y, ch, attr)
 
     def color_vline(self, x, y, h, color=-1, alt=False):
-        '''draw vertical colored line'''
+        """draw vertical colored line"""
 
         visible, x, y, h = self.rect.clip_vline(x, y, h)
         if not visible:
@@ -884,9 +893,9 @@ class Video:
             self.curses_putch(x, y + j, ch, attr)
 
     def getrect(self, x, y, w, h):
-        '''Returns ScreenBuf object with copy of x,y,w,h
+        """Returns ScreenBuf object with copy of x,y,w,h
         or None if outside clip area
-        '''
+        """
 
         visible, x, y, w, h = self.rect.clip_rect(x, y, w, h)
         if not visible:
@@ -901,7 +910,7 @@ class Video:
         return copy
 
     def putrect(self, x, y, buf):
-        '''Put ScreenBuf buf at x, y'''
+        """Put ScreenBuf buf at x, y"""
 
         if buf is None:
             return
@@ -935,17 +944,16 @@ class Video:
             offset += self.w - buf.w
 
     def clear_screen(self):
-        '''clear the screen'''
+        """clear the screen"""
 
         self.fillrect(0, 0, self.w, self.h, video_color(WHITE, BLACK))
 
 
-
 class ColorSet:
-    '''collection of colors'''
+    """collection of colors"""
 
     def __init__(self, fg=WHITE, bg=BLACK, bold=False):
-        '''initialize'''
+        """initialize"""
 
         self.text = video_color(fg, bg, bold)
         self.border = self.text
@@ -970,17 +978,15 @@ class ColorSet:
         self.invisibles = self.text
 
 
-
 class Window:
-    '''represents a window'''
+    """represents a window"""
 
     OPEN = 1
     SHOWN = 2
     FOCUS = 4
 
-    def __init__(self, x, y, w, h, colors, title=None, border=True,
-                 shadow=True):
-        '''initialize'''
+    def __init__(self, x, y, w, h, colors, title=None, border=True, shadow=True):
+        """initialize"""
 
         self.frame = Rect(x, y, w, h)
         self.colors = colors
@@ -1004,18 +1010,19 @@ class Window:
         self.flags = 0
 
     def save_background(self):
-        '''save the background'''
+        """save the background"""
 
-        self.background = VIDEO.getrect(self.rect.x, self.rect.y,
-                                        self.rect.w, self.rect.h)
+        self.background = VIDEO.getrect(
+            self.rect.x, self.rect.y, self.rect.w, self.rect.h
+        )
 
     def restore_background(self):
-        '''restore the background'''
+        """restore the background"""
 
         VIDEO.putrect(self.rect.x, self.rect.y, self.background)
 
     def open(self):
-        '''open the window'''
+        """open the window"""
 
         if self.flags & Window.OPEN:
             return
@@ -1024,7 +1031,7 @@ class Window:
         self.save_background()
 
     def close(self):
-        '''close the window'''
+        """close the window"""
 
         if not self.flags & Window.OPEN:
             return
@@ -1033,7 +1040,7 @@ class Window:
         self.flags &= ~Window.OPEN
 
     def show(self):
-        '''open the window'''
+        """open the window"""
 
         self.open()
 
@@ -1044,7 +1051,7 @@ class Window:
         self.front()
 
     def hide(self):
-        '''hide the window'''
+        """hide the window"""
 
         if not self.flags & Window.SHOWN:
             return
@@ -1059,19 +1066,19 @@ class Window:
             win.gain_focus()
 
     def gain_focus(self):
-        '''event: we got focus'''
+        """event: we got focus"""
 
         self.flags |= Window.FOCUS
         self.draw_cursor()
 
     def lose_focus(self):
-        '''event: focus lost'''
+        """event: focus lost"""
 
         self.flags &= ~Window.FOCUS
         self.draw_cursor()
 
     def front(self):
-        '''bring window to front'''
+        """bring window to front"""
 
         win = STACK.top()
         if win is not self:
@@ -1083,7 +1090,7 @@ class Window:
             self.gain_focus()
 
     def back(self):
-        '''bring window to back'''
+        """bring window to back"""
 
         self.lose_focus()
         STACK.back(self)
@@ -1094,41 +1101,50 @@ class Window:
             win.gain_focus()
 
     def resize_event(self):
-        '''the terminal was resized'''
+        """the terminal was resized"""
 
         # override this method
         # This method should only change coordinates;
         # a redraw will be called automatically
-        #pass
+        # pass
 
     def draw(self):
-        '''draw the window'''
+        """draw the window"""
 
         if not self.flags & Window.SHOWN:
             return
 
         if self.has_border:
-            VIDEO.fillrect(self.frame.x + 1, self.frame.y + 1,
-                           self.frame.w - 2, self.frame.h - 2,
-                           self.colors.text)
-            VIDEO.border(self.frame.x, self.frame.y, self.frame.w,
-                         self.frame.h, self.colors.border)
+            VIDEO.fillrect(
+                self.frame.x + 1,
+                self.frame.y + 1,
+                self.frame.w - 2,
+                self.frame.h - 2,
+                self.colors.text,
+            )
+            VIDEO.border(
+                self.frame.x,
+                self.frame.y,
+                self.frame.w,
+                self.frame.h,
+                self.colors.border,
+            )
         else:
-            VIDEO.fillrect(self.frame.x, self.frame.y, self.frame.w,
-                           self.frame.h, self.colors.text)
+            VIDEO.fillrect(
+                self.frame.x, self.frame.y, self.frame.w, self.frame.h, self.colors.text
+            )
 
         # draw frame shadow
         self.draw_shadow()
 
         # draw title
         if self.title is not None:
-            title = ' ' + self.title + ' '
+            title = " " + self.title + " "
             x = (self.frame.w - len(title)) // 2
-            VIDEO.puts(self.frame.x + x, self.frame.y, title,
-                       self.colors.title)
+            VIDEO.puts(self.frame.x + x, self.frame.y, title, self.colors.title)
 
     def draw_shadow(self):
-        '''draw shadow for frame rect'''
+        """draw shadow for frame rect"""
 
         if not self.has_shadow:
             return
@@ -1137,27 +1153,39 @@ class Window:
             return
 
         # right side shadow vlines
-        VIDEO.color_vline(self.frame.x + self.frame.w, self.frame.y + 1,
-                          self.frame.h, self.colors.shadow)
-        VIDEO.color_vline(self.frame.x + self.frame.w + 1, self.frame.y + 1,
-                          self.frame.h, self.colors.shadow)
+        VIDEO.color_vline(
+            self.frame.x + self.frame.w,
+            self.frame.y + 1,
+            self.frame.h,
+            self.colors.shadow,
+        )
+        VIDEO.color_vline(
+            self.frame.x + self.frame.w + 1,
+            self.frame.y + 1,
+            self.frame.h,
+            self.colors.shadow,
+        )
         # bottom shadow hline
-        VIDEO.color_hline(self.frame.x + 2, self.frame.y + self.frame.h,
-                          self.frame.w, self.colors.shadow)
+        VIDEO.color_hline(
+            self.frame.x + 2,
+            self.frame.y + self.frame.h,
+            self.frame.w,
+            self.colors.shadow,
+        )
 
     def draw_cursor(self):
-        '''draw cursor'''
+        """draw cursor"""
 
         # override this method
 
-#        if self.flags & Window.FOCUS:
-#            ...
-#        else:
-#            ...
-        #pass
+    #        if self.flags & Window.FOCUS:
+    #            ...
+    #        else:
+    #            ...
+    # pass
 
     def putch(self, x, y, ch, color=-1, alt=False):
-        '''put character in window'''
+        """put character in window"""
 
         if not self.bounds.clip_point(x, y):
             return
@@ -1168,9 +1196,9 @@ class Window:
         VIDEO.putch(self.bounds.x + x, self.bounds.y + y, ch, color, alt)
 
     def puts(self, x, y, msg, color=-1, alt=False):
-        '''print message in window
+        """print message in window
         Does not clear to end of line
-        '''
+        """
 
         if not self.flags & Window.SHOWN:
             return
@@ -1197,9 +1225,9 @@ class Window:
         VIDEO.puts(self.bounds.x + cx, self.bounds.y + cy, msg, color, alt)
 
     def cputs(self, x, y, msg, color=-1, alt=False):
-        '''print message in window
+        """print message in window
         Clear to end of line
-        '''
+        """
 
         if not self.flags & Window.SHOWN:
             return
@@ -1222,19 +1250,19 @@ class Window:
             color = self.colors.text
 
         if len(msg) > 0:
-            VIDEO.puts(self.bounds.x + cx, self.bounds.y + cy, msg, color,
-                       alt)
+            VIDEO.puts(self.bounds.x + cx, self.bounds.y + cy, msg, color, alt)
 
         # clear to end of line
         l = len(msg)
         w_eol = self.bounds.w - l - cx
         if w_eol > 0:
-            clear_eol = ' ' * w_eol
-            VIDEO.puts(self.bounds.x + cx + l, self.bounds.y + cy,
-                       clear_eol, color, alt)
+            clear_eol = " " * w_eol
+            VIDEO.puts(
+                self.bounds.x + cx + l, self.bounds.y + cy, clear_eol, color, alt
+            )
 
     def color_putch(self, x, y, color=-1, alt=False):
-        '''put color byte in window'''
+        """put color byte in window"""
 
         if not self.bounds.clip_point(x, y):
             return
@@ -1245,13 +1273,24 @@ class Window:
         VIDEO.color_putch(self.bounds.x + x, self.bounds.y + y, color, alt)
 
 
-
 class TextWindow(Window):
-    '''a window for displaying text'''
+    """a window for displaying text"""
 
-    def __init__(self, x, y, w, h, colors, title=None, border=True,
-                 text=None, tabsize=4, scrollbar=True, status=True):
-        '''initialize'''
+    def __init__(
+        self,
+        x,
+        y,
+        w,
+        h,
+        colors,
+        title=None,
+        border=True,
+        text=None,
+        tabsize=4,
+        scrollbar=True,
+        status=True,
+    ):
+        """initialize"""
 
         super().__init__(x, y, w, h, colors, title, border)
         if text is None:
@@ -1265,7 +1304,7 @@ class TextWindow(Window):
         self.xoffset = 0
 
         if status:
-            self.status = ''
+            self.status = ""
         else:
             self.status = None
 
@@ -1278,9 +1317,9 @@ class TextWindow(Window):
             self.scrollbar = None
 
     def load(self, filename):
-        '''load text file
+        """load text file
         Raises OSError on error
-        '''
+        """
 
         with open(filename) as f:
             self.text = f.readlines()
@@ -1298,7 +1337,7 @@ class TextWindow(Window):
         self.draw()
 
     def draw(self):
-        '''draw the window'''
+        """draw the window"""
 
         if not self.flags & Window.SHOWN:
             return
@@ -1309,7 +1348,7 @@ class TextWindow(Window):
         self.draw_statusbar()
 
     def draw_text(self):
-        '''draws the text content'''
+        """draws the text content"""
 
         y = 0
         while y < self.bounds.h:
@@ -1325,7 +1364,7 @@ class TextWindow(Window):
             y += 1
 
     def draw_cursor(self):
-        '''redraw the cursor line'''
+        """redraw the cursor line"""
 
         if self.flags & Window.FOCUS:
             color = self.colors.cursor
@@ -1335,32 +1374,33 @@ class TextWindow(Window):
             alt = False
         self.printline(self.cursor, color, alt)
 
-        self.update_statusbar(' {},{} '.format(self.top + self.cursor + 1,
-                                               self.xoffset + 1))
+        self.update_statusbar(
+            " {},{} ".format(self.top + self.cursor + 1, self.xoffset + 1)
+        )
 
     def clear_cursor(self):
-        '''erase the cursor'''
+        """erase the cursor"""
 
         self.printline(self.cursor)
 
     def printline(self, y, color=-1, alt=False):
-        '''print a single line'''
+        """print a single line"""
 
         try:
             line = self.text[self.top + y]
         except IndexError:
             # draw empty line
-            self.cputs(0, y, '', color)
+            self.cputs(0, y, "", color)
         else:
             # replace tabs by spaces
             # This is because curses will display them too big
-            line = line.replace('\t', ' ' * self.tabsize)
+            line = line.replace("\t", " " * self.tabsize)
             # take x-scrolling into account
-            line = line[self.xoffset:]
+            line = line[self.xoffset :]
             self.cputs(0, y, line, color, alt)
 
     def init_scrollbar(self):
-        '''initalize scrollbar'''
+        """initalize scrollbar"""
 
         if self.has_border and len(self.text) > 0:
             factor = float(self.bounds.h) // len(self.text)
@@ -1369,13 +1409,18 @@ class TextWindow(Window):
                 self.scrollbar_h = 1
             if self.scrollbar_h > self.bounds.h:
                 self.scrollbar_h = self.bounds.h
-#            self.update_scrollbar()
+
+    #            self.update_scrollbar()
 
     def update_scrollbar(self):
-        '''update scrollbar position'''
+        """update scrollbar position"""
 
-        if (self.scrollbar is None or not self.has_border or
-                self.scrollbar_h <= 0 or not self.text):
+        if (
+            self.scrollbar is None
+            or not self.has_border
+            or self.scrollbar_h <= 0
+            or not self.text
+        ):
             return
 
         old_y = self.scrollbar_y
@@ -1388,10 +1433,9 @@ class TextWindow(Window):
             self.draw_scrollbar()
 
     def clear_scrollbar(self):
-        '''erase scrollbar'''
+        """erase scrollbar"""
 
-        if (self.scrollbar is None or not self.has_border or
-                self.scrollbar_h <= 0):
+        if self.scrollbar is None or not self.has_border or self.scrollbar_h <= 0:
             return
 
         y = self.scrollbar_y - self.scrollbar_h // 2
@@ -1400,14 +1444,18 @@ class TextWindow(Window):
         if y > self.bounds.h - self.scrollbar_h:
             y = self.bounds.h - self.scrollbar_h
 
-        VIDEO.vline(self.frame.x + self.frame.w - 1, self.bounds.y + y,
-                    self.scrollbar_h, curses.ACS_VLINE, self.colors.border)
+        VIDEO.vline(
+            self.frame.x + self.frame.w - 1,
+            self.bounds.y + y,
+            self.scrollbar_h,
+            curses.ACS_VLINE,
+            self.colors.border,
+        )
 
     def draw_scrollbar(self):
-        '''draw scrollbar'''
+        """draw scrollbar"""
 
-        if (self.scrollbar is None or not self.has_border or
-                self.scrollbar_h <= 0):
+        if self.scrollbar is None or not self.has_border or self.scrollbar_h <= 0:
             return
 
         y = self.scrollbar_y - self.scrollbar_h // 2
@@ -1416,12 +1464,16 @@ class TextWindow(Window):
         if y > self.bounds.h - self.scrollbar_h:
             y = self.bounds.h - self.scrollbar_h
 
-        VIDEO.vline(self.frame.x + self.frame.w - 1, self.bounds.y + y,
-                    self.scrollbar_h, curses.ACS_CKBOARD,
-                    self.colors.scrollbar)
+        VIDEO.vline(
+            self.frame.x + self.frame.w - 1,
+            self.bounds.y + y,
+            self.scrollbar_h,
+            curses.ACS_CKBOARD,
+            self.colors.scrollbar,
+        )
 
     def update_statusbar(self, msg):
-        '''update the statusbar'''
+        """update the statusbar"""
 
         if self.status is None or msg == self.status:
             return
@@ -1433,14 +1485,19 @@ class TextWindow(Window):
             if x < 0:
                 x = 0
                 w = self.bounds.w
-            VIDEO.hline(self.bounds.x + x, self.frame.y + self.frame.h - 1, w,
-                        curses.ACS_HLINE, self.colors.border)
+            VIDEO.hline(
+                self.bounds.x + x,
+                self.frame.y + self.frame.h - 1,
+                w,
+                curses.ACS_HLINE,
+                self.colors.border,
+            )
 
         self.status = msg
         self.draw_statusbar()
 
     def draw_statusbar(self):
-        '''draw statusbar'''
+        """draw statusbar"""
 
         if self.status is None:
             return
@@ -1451,13 +1508,14 @@ class TextWindow(Window):
 
         msg = self.status
         if len(msg) > self.bounds.w:
-            msg = msg[self.bounds.w:]
+            msg = msg[self.bounds.w :]
 
-        VIDEO.puts(self.bounds.x + x, self.bounds.y + self.bounds.h, msg,
-                   self.colors.status)
+        VIDEO.puts(
+            self.bounds.x + x, self.bounds.y + self.bounds.h, msg, self.colors.status
+        )
 
     def move_up(self):
-        '''move up'''
+        """move up"""
 
         if self.cursor > 0:
             self.clear_cursor()
@@ -1469,7 +1527,7 @@ class TextWindow(Window):
         self.draw_cursor()
 
     def move_down(self):
-        '''move down'''
+        """move down"""
 
         if not self.text or self.cursor >= len(self.text) - 1:
             return
@@ -1484,7 +1542,7 @@ class TextWindow(Window):
         self.draw_cursor()
 
     def move_left(self):
-        '''move left'''
+        """move left"""
 
         if self.xoffset > 0:
             self.xoffset -= 4
@@ -1494,7 +1552,7 @@ class TextWindow(Window):
         self.draw_cursor()
 
     def move_right(self):
-        '''move right'''
+        """move right"""
 
         max_xoffset = 500
         if self.xoffset < max_xoffset:
@@ -1503,7 +1561,7 @@ class TextWindow(Window):
         self.draw_cursor()
 
     def scroll_up(self):
-        '''scroll up one line'''
+        """scroll up one line"""
 
         old_top = self.top
         self.top -= 1
@@ -1514,7 +1572,7 @@ class TextWindow(Window):
             self.draw_text()
 
     def scroll_down(self):
-        '''scroll down one line'''
+        """scroll down one line"""
 
         old_top = self.top
         self.top += 1
@@ -1527,7 +1585,7 @@ class TextWindow(Window):
             self.draw_text()
 
     def pageup(self):
-        '''scroll one page up'''
+        """scroll one page up"""
 
         old_top = self.top
         old_cursor = new_cursor = self.cursor
@@ -1551,7 +1609,7 @@ class TextWindow(Window):
         self.draw_cursor()
 
     def pagedown(self):
-        '''scroll one page down'''
+        """scroll one page down"""
 
         old_top = self.top
         old_cursor = new_cursor = self.cursor
@@ -1581,7 +1639,7 @@ class TextWindow(Window):
         self.draw_cursor()
 
     def goto_top(self):
-        '''go to top of document'''
+        """go to top of document"""
 
         old_top = self.top
         old_cursor = new_cursor = self.cursor
@@ -1599,7 +1657,7 @@ class TextWindow(Window):
         self.draw_cursor()
 
     def goto_bottom(self):
-        '''go to bottom of document'''
+        """go to bottom of document"""
 
         old_top = self.top
         old_cursor = new_cursor = self.cursor
@@ -1628,9 +1686,9 @@ class TextWindow(Window):
         self.draw_cursor()
 
     def runloop(self):
-        '''run main input loop for this view
+        """run main input loop for this view
         Returns a new program state code
-        '''
+        """
 
         while True:
             key = getch()
@@ -1651,10 +1709,14 @@ class TextWindow(Window):
             elif key == KEY_RIGHT:
                 self.move_right()
 
-            elif key == KEY_PAGEUP or key == 'Ctrl-U':      # pylint: disable=consider-using-in
+            elif (
+                key == KEY_PAGEUP or key == "Ctrl-U"
+            ):  # pylint: disable=consider-using-in
                 self.pageup()
 
-            elif key == KEY_PAGEDOWN or key == 'Ctrl-D':    # pylint: disable=consider-using-in
+            elif (
+                key == KEY_PAGEDOWN or key == "Ctrl-D"
+            ):  # pylint: disable=consider-using-in
                 self.pagedown()
 
             elif key == KEY_HOME:
@@ -1664,12 +1726,11 @@ class TextWindow(Window):
                 self.goto_bottom()
 
 
-
 class Widget:
-    '''represents a widget'''
+    """represents a widget"""
 
     def __init__(self, parent, x, y, colors):
-        '''initialize'''
+        """initialize"""
 
         self.parent = parent
         self.x = x
@@ -1678,34 +1739,33 @@ class Widget:
         self.has_focus = False
 
     def draw(self):
-        '''draw widget'''
+        """draw widget"""
 
         # override this method
 
     def gain_focus(self):
-        '''we get focus'''
+        """we get focus"""
 
         self.has_focus = True
         self.draw_cursor()
 
     def lose_focus(self):
-        '''we lose focus'''
+        """we lose focus"""
 
         self.has_focus = False
         self.draw_cursor()
 
     def draw_cursor(self):
-        '''draw cursor'''
+        """draw cursor"""
 
         # override this method
 
 
-
 class Button(Widget):
-    '''represents a button'''
+    """represents a button"""
 
     def __init__(self, parent, x, y, colors, label):
-        '''initialize'''
+        """initialize"""
 
         assert label is not None
 
@@ -1716,32 +1776,32 @@ class Button(Widget):
         self.pushing = False
 
     def draw(self):
-        '''draw button'''
+        """draw button"""
 
         self.draw_cursor()
 
     def draw_cursor(self):
-        '''draw button'''
+        """draw button"""
 
         # the cursor _is_ the button
         # and the button is the cursor
 
         add = 1
-        text = ' ' + self.label + ' '
+        text = " " + self.label + " "
         if len(text) <= 5:
             # minimum width is 7
-            text = ' ' + text + ' '
+            text = " " + text + " "
             add += 1
 
         if self.has_focus:
-            text = '>' + text + '<'
+            text = ">" + text + "<"
             color = self.colors.activebutton
             alt = True
         else:
             if not HAS_COLORS:
-                text = '[' + text + ']'
+                text = "[" + text + "]"
             else:
-                text = ' ' + text + ' '
+                text = " " + text + " "
             color = self.colors.button
             alt = False
         add += 1
@@ -1749,11 +1809,11 @@ class Button(Widget):
         xpos = self.x
         if self.pushing:
             # clear on left side
-            self.parent.puts(xpos, self.y, ' ')
+            self.parent.puts(xpos, self.y, " ")
             xpos += 1
         else:
             # clear on right side
-            self.parent.puts(xpos + button_width(self.label), self.y, ' ')
+            self.parent.puts(xpos + button_width(self.label), self.y, " ")
 
         self.parent.puts(xpos, self.y, text, color, alt)
 
@@ -1764,11 +1824,12 @@ class Button(Widget):
             else:
                 color = self.colors.buttonhotkey
 
-            self.parent.puts(xpos + self.hotkey_pos + add, self.y,
-                             self.hotkey, color, alt)
+            self.parent.puts(
+                xpos + self.hotkey_pos + add, self.y, self.hotkey, color, alt
+            )
 
     def push(self):
-        '''push the button'''
+        """push the button"""
 
         assert self.has_focus
 
@@ -1786,17 +1847,17 @@ class Button(Widget):
         time.sleep(0.1)
 
 
-
 class Alert(Window):
-    '''an alert box with buttons'''
+    """an alert box with buttons"""
 
-    def __init__(self, colors, title, msg, buttons=None, default=0,
-                 border=True, center_text=True):
-        '''initialize'''
+    def __init__(
+        self, colors, title, msg, buttons=None, default=0, border=True, center_text=True
+    ):
+        """initialize"""
 
         # determine width and height
         w = 0
-        lines = msg.split('\n')
+        lines = msg.split("\n")
         for line in lines:
             if len(line) > w:
                 w = len(line)
@@ -1834,9 +1895,11 @@ class Alert(Window):
 
         if buttons is None:
             # one OK button: center it
-            label = '<O>K'
+            label = "<O>K"
             x = center_x(button_width(label), self.bounds.w)
-            self.buttons = [Button(self, x, y, self.colors, label),]
+            self.buttons = [
+                Button(self, x, y, self.colors, label),
+            ]
         else:
             # make and position button widgets
             self.buttons = []
@@ -1866,7 +1929,7 @@ class Alert(Window):
         self.cursor = self.default = default
 
     def resize_event(self):
-        '''the terminal was resized'''
+        """the terminal was resized"""
 
         w = self.frame.w
         h = self.frame.h
@@ -1888,7 +1951,7 @@ class Alert(Window):
             self.rect = self.frame.copy()
 
     def draw(self):
-        '''draw the alert box'''
+        """draw the alert box"""
 
         super().draw()
 
@@ -1906,13 +1969,13 @@ class Alert(Window):
         self.draw_buttons()
 
     def draw_buttons(self):
-        '''draw the buttons'''
+        """draw the buttons"""
 
         for button in self.buttons:
             button.draw()
 
     def move_right(self):
-        '''select button to the right'''
+        """select button to the right"""
 
         if len(self.buttons) <= 1:
             return
@@ -1924,7 +1987,7 @@ class Alert(Window):
         self.buttons[self.cursor].gain_focus()
 
     def move_left(self):
-        '''select button to the left'''
+        """select button to the left"""
 
         if len(self.buttons) <= 1:
             return
@@ -1936,14 +1999,14 @@ class Alert(Window):
         self.buttons[self.cursor].gain_focus()
 
     def push(self):
-        '''push selected button'''
+        """push selected button"""
 
         self.buttons[self.cursor].push()
 
     def push_hotkey(self, key):
-        '''push hotkey
+        """push hotkey
         Returns True if key indeed pushed a button
-        '''
+        """
 
         if not self.hotkeys:
             return False
@@ -1967,9 +2030,9 @@ class Alert(Window):
         return False
 
     def runloop(self):
-        '''run the alert dialog
+        """run the alert dialog
         Returns button choice or -1 on escape
-        '''
+        """
 
         # always open with the default button active
         self.cursor = self.default
@@ -1982,13 +2045,15 @@ class Alert(Window):
                 self.close()
                 return RETURN_TO_PREVIOUS
 
-            if key == KEY_LEFT or key == KEY_BTAB:          # pylint: disable=consider-using-in
+            if key == KEY_LEFT or key == KEY_BTAB:  # pylint: disable=consider-using-in
                 self.move_left()
 
-            elif key == KEY_RIGHT or key == KEY_TAB:        # pylint: disable=consider-using-in
+            elif (
+                key == KEY_RIGHT or key == KEY_TAB
+            ):  # pylint: disable=consider-using-in
                 self.move_right()
 
-            elif key == KEY_RETURN or key == ' ':           # pylint: disable=consider-using-in
+            elif key == KEY_RETURN or key == " ":  # pylint: disable=consider-using-in
                 self.push()
                 self.close()
                 return self.cursor
@@ -1998,22 +2063,20 @@ class Alert(Window):
                 return self.cursor
 
 
-
 class MenuItem:
-    '''a single menu item'''
+    """a single menu item"""
 
     def __init__(self, label):
-        '''initialize'''
+        """initialize"""
 
         self.hotkey, self.hotkey_pos, self.text = label_hotkey(label)
 
 
-
 class Menu(Window):
-    '''a (dropdown) menu'''
+    """a (dropdown) menu"""
 
     def __init__(self, x, y, colors, border=True, items=None, closekey=None):
-        '''initialize'''
+        """initialize"""
 
         # should really have a list of items
         assert items is not None
@@ -2038,13 +2101,13 @@ class Menu(Window):
         self.cursor = 0
 
     def draw(self):
-        '''draw the window'''
+        """draw the window"""
 
         super().draw()
         self.draw_items()
 
     def draw_items(self):
-        '''draw the items'''
+        """draw the items"""
 
         y = 0
         for item in self.items:
@@ -2053,21 +2116,26 @@ class Menu(Window):
                 pass
             else:
                 # normal entry
-                if item.text == '--':
+                if item.text == "--":
                     # separator line
-                    VIDEO.hsplit(self.frame.x, self.bounds.y + y,
-                                 self.frame.w, curses.ACS_HLINE,
-                                 self.colors.border)
+                    VIDEO.hsplit(
+                        self.frame.x,
+                        self.bounds.y + y,
+                        self.frame.w,
+                        curses.ACS_HLINE,
+                        self.colors.border,
+                    )
                 else:
                     self.cputs(1, y, item.text, self.colors.menu)
                     if item.hotkey is not None:
                         # draw hotkey
-                        self.putch(1 + item.hotkey_pos, y, item.hotkey,
-                                   self.colors.menuhotkey)
+                        self.putch(
+                            1 + item.hotkey_pos, y, item.hotkey, self.colors.menuhotkey
+                        )
             y += 1
 
     def draw_cursor(self):
-        '''draw highlighted cursor line'''
+        """draw highlighted cursor line"""
 
         if self.flags & Window.FOCUS:
             attr = self.colors.activemenu
@@ -2077,62 +2145,64 @@ class Menu(Window):
             attr_hotkey = self.colors.menuhotkey
 
         item = self.items[self.cursor]
-        self.cputs(0, self.cursor, ' ' + item.text, attr, alt=True)
+        self.cputs(0, self.cursor, " " + item.text, attr, alt=True)
         if item.hotkey is not None:
             # draw hotkey
-            self.putch(1 + item.hotkey_pos, self.cursor, item.hotkey,
-                       attr_hotkey, alt=True)
+            self.putch(
+                1 + item.hotkey_pos, self.cursor, item.hotkey, attr_hotkey, alt=True
+            )
 
     def clear_cursor(self):
-        '''erase the cursor'''
+        """erase the cursor"""
 
         item = self.items[self.cursor]
-        self.cputs(0, self.cursor, ' ' + item.text, self.colors.menu)
+        self.cputs(0, self.cursor, " " + item.text, self.colors.menu)
         if item.hotkey is not None:
             # draw hotkey
-            self.putch(1 + item.hotkey_pos, self.cursor, item.hotkey,
-                       self.colors.menuhotkey)
+            self.putch(
+                1 + item.hotkey_pos, self.cursor, item.hotkey, self.colors.menuhotkey
+            )
 
     def selection(self):
-        '''Returns plaintext of currently selected item'''
+        """Returns plaintext of currently selected item"""
 
         item = self.items[self.cursor]
         return item.text
 
     def move_up(self):
-        '''move up'''
+        """move up"""
 
         self.clear_cursor()
         self.cursor -= 1
         if self.cursor < 0:
             self.cursor += len(self.items)
 
-        if self.items[self.cursor].text == '--':
+        if self.items[self.cursor].text == "--":
             # skip over separator line
             self.cursor -= 1
             assert self.cursor >= 0
-            assert self.items[self.cursor].text != '--'
+            assert self.items[self.cursor].text != "--"
 
         self.draw_cursor()
 
     def move_down(self):
-        '''move down'''
+        """move down"""
 
         self.clear_cursor()
         self.cursor += 1
         if self.cursor >= len(self.items):
             self.cursor = 0
 
-        if self.items[self.cursor].text == '--':
+        if self.items[self.cursor].text == "--":
             # skip over separator line
             self.cursor += 1
             assert self.cursor < len(self.items)
-            assert self.items[self.cursor].text != '--'
+            assert self.items[self.cursor].text != "--"
 
         self.draw_cursor()
 
     def goto_top(self):
-        '''go to top of menu'''
+        """go to top of menu"""
 
         if self.cursor == 0:
             return
@@ -2142,7 +2212,7 @@ class Menu(Window):
         self.draw_cursor()
 
     def goto_bottom(self):
-        '''go to bottom of menu'''
+        """go to bottom of menu"""
 
         if self.cursor >= len(self.items) - 1:
             return
@@ -2152,7 +2222,7 @@ class Menu(Window):
         self.draw_cursor()
 
     def push_hotkey(self, key):
-        '''Returns True if the hotkey was pressed'''
+        """Returns True if the hotkey was pressed"""
 
         key = key.upper()
         y = 0
@@ -2174,7 +2244,7 @@ class Menu(Window):
         return False
 
     def runloop(self):
-        '''run a menu'''
+        """run a menu"""
 
         self.show()
 
@@ -2189,11 +2259,11 @@ class Menu(Window):
                 self.close()
                 return MENU_CLOSE
 
-            if key == KEY_LEFT or key == KEY_BTAB:          # pylint: disable=consider-using-in
+            if key == KEY_LEFT or key == KEY_BTAB:  # pylint: disable=consider-using-in
                 self.close()
                 return MENU_LEFT
 
-            if key == KEY_RIGHT or key == KEY_TAB:          # pylint: disable=consider-using-in
+            if key == KEY_RIGHT or key == KEY_TAB:  # pylint: disable=consider-using-in
                 self.close()
                 return MENU_RIGHT
 
@@ -2203,13 +2273,17 @@ class Menu(Window):
             elif key == KEY_DOWN:
                 self.move_down()
 
-            elif key == KEY_PAGEUP or key == KEY_HOME:      # pylint: disable=consider-using-in
+            elif (
+                key == KEY_PAGEUP or key == KEY_HOME
+            ):  # pylint: disable=consider-using-in
                 self.goto_top()
 
-            elif key == KEY_PAGEDOWN or key == KEY_END:     # pylint: disable=consider-using-in
+            elif (
+                key == KEY_PAGEDOWN or key == KEY_END
+            ):  # pylint: disable=consider-using-in
                 self.goto_bottom()
 
-            elif key == KEY_RETURN or key == ' ':           # pylint: disable=consider-using-in
+            elif key == KEY_RETURN or key == " ":  # pylint: disable=consider-using-in
                 self.close()
                 return self.cursor
 
@@ -2218,14 +2292,13 @@ class Menu(Window):
                 return self.cursor
 
 
-
 class MenuBar(Window):
-    '''represents a menu bar'''
+    """represents a menu bar"""
 
     def __init__(self, colors, menus, border=True):
-        '''initialize
+        """initialize
         menus is a list of tuples: ('header', ['item #1', 'item #2', 'etc.'])
-        '''
+        """
 
         super().__init__(0, 0, VIDEO.w, 1, colors, border=False)
 
@@ -2246,8 +2319,14 @@ class MenuBar(Window):
         x = 0
         for m in menus:
             items = m[1]
-            menu = Menu(self.pos[x] - 1, self.frame.y + 1, colors, border,
-                        items, self.headers[x].hotkey)
+            menu = Menu(
+                self.pos[x] - 1,
+                self.frame.y + 1,
+                colors,
+                border,
+                items,
+                self.headers[x].hotkey,
+            )
             self.menus.append(menu)
             x += 1
 
@@ -2255,14 +2334,14 @@ class MenuBar(Window):
         self.choice = -1
 
     def resize_event(self):
-        '''the terminal was resized'''
+        """the terminal was resized"""
 
         self.frame.w = self.bounds.w = self.rect.w = VIDEO.w
 
     def draw(self):
-        '''draw menu bar'''
+        """draw menu bar"""
 
-        VIDEO.hline(0, 0, VIDEO.w, ' ', self.colors.menu)
+        VIDEO.hline(0, 0, VIDEO.w, " ", self.colors.menu)
         x = 0
         for header in self.headers:
             if x == self.cursor:
@@ -2272,12 +2351,16 @@ class MenuBar(Window):
                 self.puts(self.pos[x], 0, header.text, self.colors.menu)
                 if header.hotkey is not None:
                     # draw hotkey
-                    self.putch(self.pos[x] + header.hotkey_pos, 0,
-                               header.hotkey, self.colors.menuhotkey)
+                    self.putch(
+                        self.pos[x] + header.hotkey_pos,
+                        0,
+                        header.hotkey,
+                        self.colors.menuhotkey,
+                    )
             x += 1
 
     def draw_cursor(self):
-        '''draw the cursor (highlighted when in focus)'''
+        """draw the cursor (highlighted when in focus)"""
 
         if self.flags & Window.FOCUS:
             color = self.colors.activemenu
@@ -2289,29 +2372,36 @@ class MenuBar(Window):
             alt = False
 
         header = self.headers[self.cursor]
-        self.puts(self.pos[self.cursor] - 1, 0, ' ' + header.text + ' ',
-                  color, alt)
+        self.puts(self.pos[self.cursor] - 1, 0, " " + header.text + " ", color, alt)
         if header.hotkey is not None:
             # draw hotkey
-            self.putch(self.pos[self.cursor] + header.hotkey_pos, 0,
-                       header.hotkey, color_hotkey, alt)
+            self.putch(
+                self.pos[self.cursor] + header.hotkey_pos,
+                0,
+                header.hotkey,
+                color_hotkey,
+                alt,
+            )
 
     def clear_cursor(self):
-        '''erase cursor'''
+        """erase cursor"""
 
         color = self.colors.menu
         color_hotkey = self.colors.menuhotkey
 
         header = self.headers[self.cursor]
-        self.puts(self.pos[self.cursor] - 1, 0, ' ' + header.text + ' ',
-                  color)
+        self.puts(self.pos[self.cursor] - 1, 0, " " + header.text + " ", color)
         if header.hotkey is not None:
             # draw hotkey
-            self.putch(self.pos[self.cursor] + header.hotkey_pos, 0,
-                       header.hotkey, color_hotkey)
+            self.putch(
+                self.pos[self.cursor] + header.hotkey_pos,
+                0,
+                header.hotkey,
+                color_hotkey,
+            )
 
     def selection(self):
-        '''Returns plaintext of selected item, or None if none'''
+        """Returns plaintext of selected item, or None if none"""
 
         if self.choice == -1:
             return None
@@ -2320,14 +2410,14 @@ class MenuBar(Window):
         return menu.items[self.choice].text
 
     def position(self):
-        '''Returns tuple: (header index, item index)
+        """Returns tuple: (header index, item index)
         If item index == -1, no choice was made
-        '''
+        """
 
         return self.cursor, self.choice
 
     def move_left(self):
-        '''move left'''
+        """move left"""
 
         self.clear_cursor()
         self.cursor -= 1
@@ -2336,7 +2426,7 @@ class MenuBar(Window):
         self.draw_cursor()
 
     def move_right(self):
-        '''move right'''
+        """move right"""
 
         self.clear_cursor()
         self.cursor += 1
@@ -2345,7 +2435,7 @@ class MenuBar(Window):
         self.draw_cursor()
 
     def push_hotkey(self, key):
-        '''Returns True if the hotkey was pressed'''
+        """Returns True if the hotkey was pressed"""
 
         key = key.upper()
         x = 0
@@ -2367,7 +2457,7 @@ class MenuBar(Window):
         return False
 
     def runloop(self):
-        '''run the menu bar'''
+        """run the menu bar"""
 
         while True:
             key = getch()
@@ -2383,8 +2473,12 @@ class MenuBar(Window):
             elif key == KEY_RIGHT:
                 self.move_right()
 
-            elif (key == KEY_RETURN or key == ' ' or key == KEY_DOWN or
-                  self.push_hotkey(key)):
+            elif (
+                key == KEY_RETURN
+                or key == " "
+                or key == KEY_DOWN
+                or self.push_hotkey(key)
+            ):
                 # activate the menu
                 while True:
                     self.menus[self.cursor].show()
@@ -2421,20 +2515,18 @@ class MenuBar(Window):
                         return choice
 
 
-
 class TextField(Widget):
-    '''single line of text input'''
+    """single line of text input"""
 
     MAX_HISTORY = 50
 
-    def __init__(self, parent, x, y, w, colors, history=True,
-                 inputfilter=None):
-        '''initialize'''
+    def __init__(self, parent, x, y, w, colors, history=True, inputfilter=None):
+        """initialize"""
 
         super().__init__(parent, x, y, colors)
 
         self.w = w
-        self.text = ''
+        self.text = ""
         self.cursor = 0
         if history:
             self.history = []
@@ -2444,34 +2536,33 @@ class TextField(Widget):
         self.inputfilter = inputfilter
 
     def draw(self):
-        '''draw the TextField'''
+        """draw the TextField"""
 
         w = len(self.text)
         VIDEO.puts(self.x, self.y, self.text, self.colors.text)
         # clear to EOL
-        VIDEO.hline(self.x + w, self.y, self.w - w, ' ', self.colors.text)
+        VIDEO.hline(self.x + w, self.y, self.w - w, " ", self.colors.text)
 
         self.draw_cursor()
 
     def draw_cursor(self):
-        '''draw the cursor'''
+        """draw the cursor"""
 
         if self.has_focus:
             # draw cursor
             if self.cursor < len(self.text):
                 ch = self.text[self.cursor]
             else:
-                ch = ' '
-            VIDEO.putch(self.x + self.cursor, self.y, ch, self.colors.cursor,
-                        alt=True)
+                ch = " "
+            VIDEO.putch(self.x + self.cursor, self.y, ch, self.colors.cursor, alt=True)
 
     def clear(self):
-        '''clears the TextField onscreen (not the TextField content)'''
+        """clears the TextField onscreen (not the TextField content)"""
 
-        VIDEO.hline(self.x, self.y, self.w, ' ', self.colors.text)
+        VIDEO.hline(self.x, self.y, self.w, " ", self.colors.text)
 
     def add_history(self):
-        '''add entered text to history'''
+        """add entered text to history"""
 
         if self.history is None or not self.text:
             return
@@ -2494,7 +2585,7 @@ class TextField(Widget):
         self.history_cursor = 0
 
     def recall_up(self):
-        '''go back in history'''
+        """go back in history"""
 
         if self.history is None or not self.history:
             return
@@ -2510,11 +2601,13 @@ class TextField(Widget):
         self.draw_cursor()
 
     def recall_down(self):
-        '''go forward in history'''
+        """go forward in history"""
 
-        if (self.history is None or
-                self.history_cursor >= len(self.history) or
-                not self.history):
+        if (
+            self.history is None
+            or self.history_cursor >= len(self.history)
+            or not self.history
+        ):
             return
 
         if self.history_cursor < len(self.history):
@@ -2523,7 +2616,7 @@ class TextField(Widget):
         if self.history_cursor < len(self.history):
             self.text = self.history[self.history_cursor]
         else:
-            self.text = ''
+            self.text = ""
 
         self.cursor = len(self.text)
 
@@ -2531,10 +2624,10 @@ class TextField(Widget):
         self.draw_cursor()
 
     def runloop(self):
-        '''run the TextField'''
+        """run the TextField"""
 
         # reset the text
-        self.text = ''
+        self.text = ""
         self.cursor = 0
         self.draw()
 
@@ -2544,7 +2637,7 @@ class TextField(Widget):
             key = getch()
 
             if key == KEY_ESC:
-                self.text = ''
+                self.text = ""
                 self.cursor = 0
                 self.lose_focus()
                 self.clear()
@@ -2568,15 +2661,13 @@ class TextField(Widget):
 
             if key == KEY_BS:
                 if self.cursor > 0:
-                    self.text = (self.text[:self.cursor - 1] +
-                                 self.text[self.cursor:])
+                    self.text = self.text[: self.cursor - 1] + self.text[self.cursor :]
                     self.cursor -= 1
                     self.draw()
 
             elif key == KEY_DEL:
                 if self.cursor < len(self.text):
-                    self.text = (self.text[:self.cursor] +
-                                 self.text[self.cursor + 1:])
+                    self.text = self.text[: self.cursor] + self.text[self.cursor + 1 :]
                     self.draw()
 
             elif key == KEY_LEFT:
@@ -2612,29 +2703,27 @@ class TextField(Widget):
                     ch = self.default_inputfilter(key)
 
                 if ch is not None:
-                    self.text = (self.text[:self.cursor] + ch +
-                                 self.text[self.cursor:])
+                    self.text = self.text[: self.cursor] + ch + self.text[self.cursor :]
                     self.cursor += 1
                     self.draw()
 
     def default_inputfilter(self, key):
-        '''Returns key if valid input
+        """Returns key if valid input
         or None if invalid
-        '''
+        """
 
         val = ord(key)
-        if ord(' ') <= val <= ord('~'):
+        if ord(" ") <= val <= ord("~"):
             return key
 
         return None
 
 
-
 class CmdLine(Window):
-    '''command line: single line with prompt'''
+    """command line: single line with prompt"""
 
     def __init__(self, x, y, w, colors, prompt=None):
-        '''initialize'''
+        """initialize"""
 
         super().__init__(x, y, w, 1, colors, title=None, border=False)
         x = self.bounds.x
@@ -2649,7 +2738,7 @@ class CmdLine(Window):
         self.textfield = TextField(self, x, self.bounds.y, w, colors)
 
     def draw(self):
-        '''draw the command line'''
+        """draw the command line"""
 
         if self.prompt is not None:
             self.puts(0, 0, self.prompt, self.colors.prompt)
@@ -2657,29 +2746,28 @@ class CmdLine(Window):
         self.textfield.draw()
 
     def draw_cursor(self):
-        '''draw the cursor'''
+        """draw the cursor"""
 
         self.textfield.draw_cursor()
 
     def runloop(self):
-        '''run the command line window'''
+        """run the command line window"""
 
         ret = self.textfield.runloop()
         self.close()
         return ret
 
 
-
 class WindowStack:
-    '''represents a stack of Windows'''
+    """represents a stack of Windows"""
 
     def __init__(self):
-        '''initialize'''
+        """initialize"""
 
         self.stack = []
 
     def remove(self, win):
-        '''Remove window from stack'''
+        """Remove window from stack"""
 
         assert isinstance(win, Window)
         try:
@@ -2689,19 +2777,19 @@ class WindowStack:
             pass
 
     def front(self, win):
-        '''Move window to front'''
+        """Move window to front"""
 
         self.remove(win)
         self.stack.append(win)
 
     def back(self, win):
-        '''Move window back'''
+        """Move window back"""
 
         self.remove(win)
         self.stack.insert(0, win)
 
     def top(self):
-        '''Returns the top of stack'''
+        """Returns the top of stack"""
 
         if not self.stack:
             return None
@@ -2709,9 +2797,8 @@ class WindowStack:
         return self.stack[-1]
 
 
-
 def video_color(fg, bg=None, bold=False):
-    '''Returns combined (ScreenBuf) color code'''
+    """Returns combined (ScreenBuf) color code"""
 
     if bg is None:
         # passed in only a combined color code
@@ -2727,17 +2814,17 @@ def video_color(fg, bg=None, bold=False):
 
 
 def reverse_video(color):
-    '''Returns reverse of combined color code'''
+    """Returns reverse of combined color code"""
 
     bg = color >> 4
     fg = color & 7
     # in general looks nicer without bold
-#    bold = color & BOLD
+    #    bold = color & BOLD
     return (fg << 4) | bg
 
 
 def curses_color(fg, bg=None, bold=False, alt=False):
-    '''Returns curses colorpair index'''
+    """Returns curses colorpair index"""
 
     global CURSES_COLORPAIR_IDX
 
@@ -2756,7 +2843,7 @@ def curses_color(fg, bg=None, bold=False, alt=False):
     assert 0 <= fg < BOLD
     assert 0 <= bg < BOLD
 
-    idx = '{:02x}'.format((bg << 4) | fg)
+    idx = "{:02x}".format((bg << 4) | fg)
     if idx not in CURSES_COLORPAIRS:
         # make new curses color pair
         assert 0 <= CURSES_COLORPAIR_IDX < curses.COLOR_PAIRS - 1
@@ -2769,16 +2856,16 @@ def curses_color(fg, bg=None, bold=False, alt=False):
     color = curses.color_pair(CURSES_COLORPAIRS[idx])
     if bold:
         return color | curses.A_BOLD
-    #else
+    # else
     return color
 
 
 def label_hotkey(label):
-    '''Returns triple: (hotkey, hotkey position, plaintext) of the label
+    """Returns triple: (hotkey, hotkey position, plaintext) of the label
     or None if there is none
 
     Mind that hotkeys are uppercase, or may also be "Ctrl-key"
-    '''
+    """
 
     m = REGEX_HOTKEY.match(label)
     if m is None:
@@ -2788,10 +2875,10 @@ def label_hotkey(label):
     if len(hotkey) == 1:
         hotkey = hotkey.upper()
 
-    hotkey_pos = label.find('<')
+    hotkey_pos = label.find("<")
     if hotkey_pos > -1:
         # strip out hooks
-        plaintext = label.replace('<', '').replace('>', '')
+        plaintext = label.replace("<", "").replace(">", "")
     else:
         plaintext = label
 
@@ -2799,17 +2886,17 @@ def label_hotkey(label):
 
 
 def label_length(label):
-    '''Returns visual label length'''
+    """Returns visual label length"""
 
     m = REGEX_HOTKEY.match(label)
     if m is None:
         return len(label)
-    #else
+    # else
     return len(label) - 2
 
 
 def button_width(label):
-    '''Returns visual size of a button'''
+    """Returns visual size of a button"""
 
     if isinstance(label, Button):
         label = label.label
@@ -2823,9 +2910,9 @@ def button_width(label):
 
 
 def center_x(width, area=0):
-    '''Return centered x coordinate
+    """Return centered x coordinate
     If area is not given, center on screen
-    '''
+    """
 
     if area == 0:
         area = VIDEO.w
@@ -2837,9 +2924,9 @@ def center_x(width, area=0):
 
 
 def center_y(height, area=0):
-    '''Return centered y coordinate
+    """Return centered y coordinate
     If area is not given, put it in top half of screen
-    '''
+    """
 
     if area == 0:
         y = (VIDEO.h - height) * 0.35
@@ -2850,17 +2937,24 @@ def center_y(height, area=0):
 
 
 def linemode(mode):
-    '''set linemode'''
+    """set linemode"""
 
     global LINEMODE, CURSES_LINES
 
     if CURSES_LINES is None:
         # save original curses line characters
-        CURSES_LINES = (curses.ACS_HLINE, curses.ACS_VLINE,
-                        curses.ACS_ULCORNER, curses.ACS_URCORNER,
-                        curses.ACS_LLCORNER, curses.ACS_LRCORNER,
-                        curses.ACS_LTEE, curses.ACS_RTEE,
-                        curses.ACS_TTEE, curses.ACS_BTEE)
+        CURSES_LINES = (
+            curses.ACS_HLINE,
+            curses.ACS_VLINE,
+            curses.ACS_ULCORNER,
+            curses.ACS_URCORNER,
+            curses.ACS_LLCORNER,
+            curses.ACS_LRCORNER,
+            curses.ACS_LTEE,
+            curses.ACS_RTEE,
+            curses.ACS_TTEE,
+            curses.ACS_BTEE,
+        )
     else:
         # restore original curses line characters
         curses.ACS_HLINE = CURSES_LINES[0]
@@ -2878,19 +2972,19 @@ def linemode(mode):
 
     # redefine character set
     if LINEMODE & LM_ASCII:
-        curses.ACS_HLINE = ord('-')
-        curses.ACS_VLINE = ord('|')
-        curses.ACS_ULCORNER = ord('+')
-        curses.ACS_URCORNER = ord('+')
-        curses.ACS_LLCORNER = ord('+')
-        curses.ACS_LRCORNER = ord('+')
-        curses.ACS_LTEE = ord('+')
-        curses.ACS_RTEE = ord('+')
-        curses.ACS_TTEE = ord('+')
-        curses.ACS_BTEE = ord('+')
+        curses.ACS_HLINE = ord("-")
+        curses.ACS_VLINE = ord("|")
+        curses.ACS_ULCORNER = ord("+")
+        curses.ACS_URCORNER = ord("+")
+        curses.ACS_LLCORNER = ord("+")
+        curses.ACS_LRCORNER = ord("+")
+        curses.ACS_LTEE = ord("+")
+        curses.ACS_RTEE = ord("+")
+        curses.ACS_TTEE = ord("+")
+        curses.ACS_BTEE = ord("+")
 
     if not LINEMODE & LM_VLINE:
-        curses.ACS_VLINE = ord(' ')
+        curses.ACS_VLINE = ord(" ")
         curses.ACS_ULCORNER = curses.ACS_HLINE
         curses.ACS_URCORNER = curses.ACS_HLINE
         curses.ACS_LLCORNER = curses.ACS_HLINE
@@ -2901,7 +2995,7 @@ def linemode(mode):
         curses.ACS_BTEE = curses.ACS_HLINE
 
     if not LINEMODE & LM_HLINE:
-        curses.ACS_HLINE = ord(' ')
+        curses.ACS_HLINE = ord(" ")
         curses.ACS_ULCORNER = curses.ACS_VLINE
         curses.ACS_URCORNER = curses.ACS_VLINE
         curses.ACS_LLCORNER = curses.ACS_VLINE
@@ -2913,11 +3007,11 @@ def linemode(mode):
 
 
 def init_curses():
-    '''initialize curses'''
+    """initialize curses"""
 
     global STDSCR, CURSES_COLORS, HAS_COLORS
 
-    os.environ['ESCDELAY'] = '25'
+    os.environ["ESCDELAY"] = "25"
 
     STDSCR = curses.initscr()
     curses.savetty()
@@ -2952,14 +3046,16 @@ def init_curses():
 
     # init colors in same order as the color 'enums'
     # Sadly, curses.CODES do not exist until initscr() is done
-    CURSES_COLORS = (curses.COLOR_BLACK,
-                     curses.COLOR_BLUE,
-                     curses.COLOR_GREEN,
-                     curses.COLOR_CYAN,
-                     curses.COLOR_RED,
-                     curses.COLOR_MAGENTA,
-                     curses.COLOR_YELLOW,
-                     curses.COLOR_WHITE)
+    CURSES_COLORS = (
+        curses.COLOR_BLACK,
+        curses.COLOR_BLUE,
+        curses.COLOR_GREEN,
+        curses.COLOR_CYAN,
+        curses.COLOR_RED,
+        curses.COLOR_MAGENTA,
+        curses.COLOR_YELLOW,
+        curses.COLOR_WHITE,
+    )
 
     # odd ... screen must be refreshed at least once,
     # or things won't work as expected
@@ -2967,7 +3063,7 @@ def init_curses():
 
 
 def terminate():
-    '''end the curses window mode'''
+    """end the curses window mode"""
 
     if STDSCR is not None:
         # enable cursor
@@ -2994,7 +3090,7 @@ def terminate():
 
 
 def redraw_screen():
-    '''redraw the entire screen'''
+    """redraw the entire screen"""
 
     VIDEO.clear_screen()
 
@@ -3010,7 +3106,7 @@ def redraw_screen():
 
 
 def resize_event():
-    '''the terminal was resized'''
+    """the terminal was resized"""
 
     global VIDEO
 
@@ -3032,21 +3128,21 @@ def resize_event():
 
 
 def getch():
-    '''get keyboard input
+    """get keyboard input
     Returns key as a string value
-    '''
+    """
 
     # move cursor to bottom right corner
     STDSCR.move(VIDEO.h - 1, VIDEO.w - 1)
-#    STDSCR.leaveok(0)      # leaveok() doesn't work; broken?
+    #    STDSCR.leaveok(0)      # leaveok() doesn't work; broken?
 
     # update the screen
     curses.doupdate()
 
-    #__MODIFY__
+    # __MODIFY__
     STDSCR.timeout(0)
     while True:
-        
+
         key = STDSCR.getch()
 
         ## DEBUG
@@ -3067,23 +3163,23 @@ def getch():
             # got a user key
             break
 
-    if ord(' ') <= key <= ord('~'):
+    if ord(" ") <= key <= ord("~"):
         # ascii keys are returned as string
         return chr(key)
 
-    skey = '0x{:02x}'.format(key)
+    skey = "0x{:02x}".format(key)
     if skey in KEY_TABLE:
         return KEY_TABLE[skey]
 
     if 1 <= key <= 26:
         # Ctrl-A to Ctrl-Z
-        return 'Ctrl-' + chr(ord('@') + key)
+        return "Ctrl-" + chr(ord("@") + key)
 
     return skey
 
 
 def init():
-    '''initialize module'''
+    """initialize module"""
 
     global VIDEO, STACK
 
@@ -3092,7 +3188,7 @@ def init():
 
 
 def unit_test():
-    '''test this module'''
+    """test this module"""
 
     init()
 
@@ -3102,47 +3198,54 @@ def unit_test():
     x = VIDEO.w // 2 - 1
     y = VIDEO.h // 2
 
-    VIDEO.putch(x, y, 'W')
-    VIDEO.putch(x + 1, y, 'J', pinky)
+    VIDEO.putch(x, y, "W")
+    VIDEO.putch(x + 1, y, "J", pinky)
 
     menu_colors = ColorSet(BLACK, WHITE)
     menu_colors.menuhotkey = video_color(RED, WHITE)
     menu_colors.activemenu = video_color(BLACK, GREEN)
     menu_colors.activemenuhotkey = video_color(RED, GREEN)
 
-    menubar = MenuBar(menu_colors,
-                      [('<=>', ['<A>bout',
-                                '--',
-                                '<Q>uit      Ctrl-Q']),
-                       ('<F>ile', ['<N>ew       Ctrl-N',
-                                   '<L>oad      Ctrl-L',
-                                   '<S>ave      Ctrl-S',
-                                   '--',
-                                   '<P>rint     Ctrl-P']),
-                       ('<E>dit', ['<U>ndo      Ctrl-Z',
-                                   'Cut       Ctrl-X',
-                                   '<C>opy      Ctrl-C',
-                                   '<P>aste     Ctrl-V',
-                                   '--',
-                                   '<F>ind      Ctrl-F',
-                                   '<R>eplace   Ctrl-G']),
-                       ('<O>ptions', ['Option <1>',
-                                      'Option <2>',
-                                      'Option <3>']),
-                       ('<W>indow', ['<M>inimize',
-                                     '<Z>oom',
-                                     '<C>ycle through windows',
-                                     'Bring to <F>ront']),
-                       ('<H>elp', ['<I>ntroduction',
-                                   '<S>earch',
-                                   '<O>nline help'])
-                      ])
+    menubar = MenuBar(
+        menu_colors,
+        [
+            ("<=>", ["<A>bout", "--", "<Q>uit      Ctrl-Q"]),
+            (
+                "<F>ile",
+                [
+                    "<N>ew       Ctrl-N",
+                    "<L>oad      Ctrl-L",
+                    "<S>ave      Ctrl-S",
+                    "--",
+                    "<P>rint     Ctrl-P",
+                ],
+            ),
+            (
+                "<E>dit",
+                [
+                    "<U>ndo      Ctrl-Z",
+                    "Cut       Ctrl-X",
+                    "<C>opy      Ctrl-C",
+                    "<P>aste     Ctrl-V",
+                    "--",
+                    "<F>ind      Ctrl-F",
+                    "<R>eplace   Ctrl-G",
+                ],
+            ),
+            ("<O>ptions", ["Option <1>", "Option <2>", "Option <3>"]),
+            (
+                "<W>indow",
+                ["<M>inimize", "<Z>oom", "<C>ycle through windows", "Bring to <F>ront"],
+            ),
+            ("<H>elp", ["<I>ntroduction", "<S>earch", "<O>nline help"]),
+        ],
+    )
     menubar.show()
 
     bgcolors = ColorSet(YELLOW, RED, True)
-    bgwin = Window(15, 6, 50, 16, bgcolors, title='Back')
+    bgwin = Window(15, 6, 50, 16, bgcolors, title="Back")
     bgwin.show()
-    bgwin.puts(0, 0, 'This is the back window')
+    bgwin.puts(0, 0, "This is the back window")
 
     wincolors = ColorSet(WHITE, BLUE, True)
     wincolors.border = video_color(CYAN, BLUE, True)
@@ -3151,8 +3254,8 @@ def unit_test():
     wincolors.status = video_color(BLACK, WHITE, False)
     wincolors.scrollbar = wincolors.border
 
-    win = TextWindow(0, 1, 60, 20, wincolors, title='Hello')
-    win.load('textmode.py')
+    win = TextWindow(0, 1, 60, 20, wincolors, title="Hello")
+    win.load("textmode.py")
     win.show()
 
     alert_colors = ColorSet(BLACK, WHITE)
@@ -3162,16 +3265,20 @@ def unit_test():
     alert_colors.activebutton = video_color(WHITE, GREEN, bold=True)
     alert_colors.activebuttonhotkey = video_color(YELLOW, GREEN, bold=True)
 
-    alert = Alert(alert_colors, title='Alert', msg='Failed to load file',
-                  buttons=['<C>ancel', '<O>K'], default=1)
+    alert = Alert(
+        alert_colors,
+        title="Alert",
+        msg="Failed to load file",
+        buttons=["<C>ancel", "<O>K"],
+        default=1,
+    )
     alert.show()
-
 
     alert.runloop()
 
     colors = ColorSet(WHITE, BLACK)
     colors.cursor = video_color(WHITE, GREEN, bold=True)
-    cmdline = CmdLine(0, VIDEO.h - 1, VIDEO.w, colors, ':')
+    cmdline = CmdLine(0, VIDEO.h - 1, VIDEO.w, colors, ":")
     cmdline.show()
 
     # main loop
@@ -3191,14 +3298,13 @@ def unit_test():
     terminate()
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         unit_test()
-    except:                 # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
         terminate()
         traceback.print_exc()
-        input('hit return')
+        input("hit return")
 
 
 # EOB

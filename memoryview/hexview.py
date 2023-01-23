@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-'''hex file viewer'''
+"""hex file viewer"""
 
 import os
 import sys
@@ -35,26 +35,29 @@ import time
 import textmode
 
 from textmode import Rect
-from textmode import WHITE, YELLOW, GREEN, CYAN, BLUE #, MAGENTA
+from textmode import WHITE, YELLOW, GREEN, CYAN, BLUE  # , MAGENTA
 from textmode import RED, BLACK
 from textmode import getch, KEY_ESC, KEY_RETURN
 from textmode import KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
 from textmode import KEY_PAGEUP, KEY_PAGEDOWN, KEY_HOME, KEY_END
 from textmode import KEY_TAB, KEY_BTAB, KEY_BS, KEY_DEL
-#from hexviewlib.textmode import debug
 
-VERSION = '1.3'
+# from hexviewlib.textmode import debug
+
+VERSION = "1.3"
 
 OPT_LINEMODE = textmode.LM_HLINE | textmode.LM_VLINE
 
 API = None
+
+
 class MemoryFile:
-    '''access file data as if it is an in-memory array'''
+    """access file data as if it is an in-memory array"""
 
     IOSIZE = 256 * 1024
 
-    def __init__(self, filename=None, pagesize=25*16):
-        '''initialise'''
+    def __init__(self, filename=None, pagesize=25 * 16):
+        """initialise"""
 
         self.filename = filename
         self.filesize = 0
@@ -64,25 +67,26 @@ class MemoryFile:
         self.cachesize = self.pagesize * 3
         # round up to nearest multiple of
         if self.cachesize % MemoryFile.IOSIZE != 0:
-            self.cachesize += (MemoryFile.IOSIZE -
-                               (self.cachesize % MemoryFile.IOSIZE))
+            self.cachesize += MemoryFile.IOSIZE - (self.cachesize % MemoryFile.IOSIZE)
         self.data = None
 
         if filename is not None:
             self.load(filename)
 
     def load(self, filename):
-        '''open file'''
+        """open file"""
 
         self.filename = filename
-        self.filesize = 0x7fffffffffff#os.path.getsize(self.filename)
-        self.fd = 0#open(filename, 'rb')
-        self.data = bytearray(b"\x00"*self.cachesize)#bytearray(self.fd.read(self.cachesize))
+        self.filesize = 0x7FFFFFFFFFFF  # os.path.getsize(self.filename)
+        self.fd = 0  # open(filename, 'rb')
+        self.data = bytearray(
+            b"\x00" * self.cachesize
+        )  # bytearray(self.fd.read(self.cachesize))
         self.low = 0
         self.high = len(self.data)
 
     def close(self):
-        '''close the file'''
+        """close the file"""
 
         if self.fd is not None:
             self.fd.close()
@@ -93,16 +97,16 @@ class MemoryFile:
         self.data = None
 
     def __len__(self):
-        '''Returns length'''
+        """Returns length"""
 
         return self.filesize
 
     def __getitem__(self, idx):
-        '''Return byte or range at idx'''
+        """Return byte or range at idx"""
         if isinstance(idx, int):
             # return byte at address
             if idx < 0 or idx >= self.filesize:
-                raise IndexError('MemoryFile out of bounds error')
+                raise IndexError("MemoryFile out of bounds error")
 
             if idx < self.low or idx >= self.high:
                 self.pagefault(idx)
@@ -111,27 +115,26 @@ class MemoryFile:
 
         if isinstance(idx, slice):
             if idx.start < 0 or idx.stop > self.filesize:
-                raise IndexError('MemoryFile out of bounds error')
+                raise IndexError("MemoryFile out of bounds error")
 
             if idx.start < self.low or idx.stop > self.high:
                 self.pagefault(self.low)
 
-            return self.data[idx.start - self.low:
-                             idx.stop - self.low:idx.step]
+            return self.data[idx.start - self.low : idx.stop - self.low : idx.step]
 
-        raise TypeError('invalid argument type')
+        raise TypeError("invalid argument type")
 
-    def __setitem__(self,idx,value):
+    def __setitem__(self, idx, value):
         if idx < 0 or idx >= self.filesize:
-            raise IndexError('MemoryFile out of bounds error')
+            raise IndexError("MemoryFile out of bounds error")
 
         if idx < self.low or idx >= self.high:
             self.pagefault(idx)
-        
+
         self.data[idx - self.low] = value
-    
+
     def pagefault(self, addr):
-        '''page in data as needed'''
+        """page in data as needed"""
 
         self.low = addr - self.cachesize // 2
         if self.low < 0:
@@ -143,20 +146,19 @@ class MemoryFile:
 
         size = self.high - self.low
         self.high = self.low + size
-        ret = API.ReadProcessMemory(self.low,size,False)
+        ret = API.ReadProcessMemory(self.low, size, False)
         if ret == False:
-            return bytearray(b"\x00"*size)
+            return bytearray(b"\x00" * size)
         else:
             return bytearray(ret)
-        
 
     def find(self, searchtext, pos):
-        '''find searchtext
+        """find searchtext
         Returns -1 if not found
-        '''
+        """
 
         if isinstance(searchtext, str):
-            searchtext = bytes(searchtext, 'utf-8')
+            searchtext = bytes(searchtext, "utf-8")
 
         if pos < 0 or pos >= self.filesize:
             return -1
@@ -180,14 +182,13 @@ class MemoryFile:
             self.pagefault(self.low)
 
 
-
 class HexWindow(textmode.Window):
-    '''hex viewer main window'''
+    """hex viewer main window"""
 
     MODE_8BIT = 1
     MODE_16BIT = 2
     MODE_32BIT = 4
-    CLEAR_VIEWMODE = 0xffff & ~7
+    CLEAR_VIEWMODE = 0xFFFF & ~7
     MODE_SELECT = 8
     MODE_VALUES = 0x10
 
@@ -195,8 +196,8 @@ class HexWindow(textmode.Window):
     FORWARD = 0
     BACKWARD = 1
 
-    def __init__(self, x, y, w, h, colors, title=None, border=True,address = 0):
-        '''initialize'''
+    def __init__(self, x, y, w, h, colors, title=None, border=True, address=0):
+        """initialize"""
 
         # take off height for ValueSubWindow
         h -= 6
@@ -212,15 +213,12 @@ class HexWindow(textmode.Window):
 
         colors = textmode.ColorSet(WHITE, BLACK)
         colors.cursor = textmode.video_color(WHITE, GREEN, bold=True)
-        self.cmdline = CommandBar(colors, prompt=':')
-        self.search = CommandBar(colors, prompt='/')
+        self.cmdline = CommandBar(colors, prompt=":")
+        self.search = CommandBar(colors, prompt="/")
         self.searchdir = HexWindow.FORWARD
-        self.hexsearch = CommandBar(colors, prompt='x/',
-                                    inputfilter=hex_inputfilter)
-        self.jumpaddr = CommandBar(colors, prompt='@',
-                                   inputfilter=hex_inputfilter)
-        self.addaddr = CommandBar(colors, prompt='@+',
-                                  inputfilter=hex_inputfilter)
+        self.hexsearch = CommandBar(colors, prompt="x/", inputfilter=hex_inputfilter)
+        self.jumpaddr = CommandBar(colors, prompt="@", inputfilter=hex_inputfilter)
+        self.addaddr = CommandBar(colors, prompt="@+", inputfilter=hex_inputfilter)
 
         # this is a hack; I always want a visible cursor
         # even though the command bar can be the front window
@@ -230,10 +228,9 @@ class HexWindow(textmode.Window):
         colors = textmode.ColorSet(WHITE, BLACK)
         colors.border = textmode.video_color(CYAN, BLACK)
         colors.status = textmode.video_color(CYAN, BLACK)
-        self.valueview = ValueSubWindow(x, y + self.frame.h - 1, w, 7,
-                                        colors)
+        self.valueview = ValueSubWindow(x, y + self.frame.h - 1, w, 7, colors)
 
-        self.address_fmt = '{:08X}  '
+        self.address_fmt = "{:08X}  "
         self.bytes_offset = 10
         self.ascii_offset = 60
 
@@ -241,15 +238,14 @@ class HexWindow(textmode.Window):
         self.get_lasttime = 0
 
     def resize_event(self):
-        '''the terminal was resized'''
+        """the terminal was resized"""
 
         # always keep same width, but height may vary
         x = self.frame.x
         y = self.frame.y
         w = self.frame.w
         if self.mode & HexWindow.MODE_VALUES:
-            h = self.frame.h = (textmode.VIDEO.h - 1 -
-                                (self.valueview.frame.h - 1))
+            h = self.frame.h = textmode.VIDEO.h - 1 - (self.valueview.frame.h - 1)
         else:
             h = self.frame.h = textmode.VIDEO.h - 1
 
@@ -277,51 +273,51 @@ class HexWindow(textmode.Window):
         self.valueview.resize_event()
 
     def load(self, filename):
-        '''load file
+        """load file
         Raises OSError on error
-        '''
+        """
 
         self.data = MemoryFile(filename, self.bounds.h * 16)
 
         self.title = os.path.basename(filename)
         if len(self.title) > self.bounds.w:
-            self.title = self.title[:self.bounds.w - 6] + '...'
+            self.title = self.title[: self.bounds.w - 6] + "..."
 
         self.set_address_format(len(self.data))
 
     def set_address_format(self, top_addr):
-        '''set address notation'''
+        """set address notation"""
 
         # slightly change layout so that app stays goodlooking
 
-        if top_addr <= 0xffff:
+        if top_addr <= 0xFFFF:
             # up to 64 kiB
-            self.address_fmt = '{:04X}    '
+            self.address_fmt = "{:04X}    "
             self.bytes_offset = 8
             self.ascii_offset = 60
-        elif top_addr <= 0xffffffff:
+        elif top_addr <= 0xFFFFFFFF:
             # up to 4 GiB
-            self.address_fmt = '{:08X}  '
+            self.address_fmt = "{:08X}  "
             self.bytes_offset = 10
             self.ascii_offset = 60
-        elif top_addr <= 0xffffffffff:
+        elif top_addr <= 0xFFFFFFFFFF:
             # up to 1 TiB
-            self.address_fmt = '{:010X}  '
+            self.address_fmt = "{:010X}  "
             self.bytes_offset = 12
             self.ascii_offset = 62
         else:
             # up to 256 TiB will look fine
-            self.address_fmt = '{:012X} '
+            self.address_fmt = "{:012X} "
             self.bytes_offset = 13
             self.ascii_offset = 62
 
-        #__MODIFY__
-        self.address_fmt = '{:012X} '
+        # __MODIFY__
+        self.address_fmt = "{:012X} "
         self.bytes_offset = 13
         self.ascii_offset = 62
 
     def show(self):
-        '''open the window'''
+        """open the window"""
 
         if self.mode & HexWindow.MODE_VALUES:
             self.valueview.show()
@@ -329,14 +325,14 @@ class HexWindow(textmode.Window):
         super().show()
 
     def close(self):
-        '''close window'''
+        """close window"""
 
         self.data.close()
 
         super().close()
 
     def lose_focus(self):
-        '''we lose focus'''
+        """we lose focus"""
 
         if self.ignore_focus:
             # ignore only once
@@ -346,7 +342,7 @@ class HexWindow(textmode.Window):
         super().lose_focus()
 
     def draw(self):
-        '''draw the window'''
+        """draw the window"""
 
         if not self.flags & textmode.Window.SHOWN:
             return
@@ -365,23 +361,30 @@ class HexWindow(textmode.Window):
         self.draw_statusbar()
 
     def draw_statusbar(self):
-        '''draw statusbar'''
+        """draw statusbar"""
 
         status = None
         if self.mode & HexWindow.MODE_SELECT:
-            status = 'Select'
+            status = "Select"
 
         if status is None:
-            textmode.VIDEO.hline(self.bounds.x + self.bounds.w - 12,
-                        self.bounds.y + self.bounds.h, 10, curses.ACS_HLINE,
-                        self.colors.border)
+            textmode.VIDEO.hline(
+                self.bounds.x + self.bounds.w - 12,
+                self.bounds.y + self.bounds.h,
+                10,
+                curses.ACS_HLINE,
+                self.colors.border,
+            )
         else:
-            textmode.VIDEO.puts(self.bounds.x + self.bounds.w - 2 - len(status),
-                       self.bounds.y + self.bounds.h, status,
-                       self.colors.status)
+            textmode.VIDEO.puts(
+                self.bounds.x + self.bounds.w - 2 - len(status),
+                self.bounds.y + self.bounds.h,
+                status,
+                self.colors.status,
+            )
 
     def draw_view_8bit(self):
-        '''draw hexview for single bytes'''
+        """draw hexview for single bytes"""
 
         y = 0
         while y < self.bounds.h:
@@ -392,29 +395,40 @@ class HexWindow(textmode.Window):
             # bytes (left block)
             try:
                 # try fast(er) implementation
-                line += (('{:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}  '
-                          '{:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}').format
-                          (self.data[offset], self.data[offset + 1],
-                           self.data[offset + 2], self.data[offset + 3],
-                           self.data[offset + 4], self.data[offset + 5],
-                           self.data[offset + 6], self.data[offset + 7],
-                           self.data[offset + 8], self.data[offset + 9],
-                           self.data[offset + 10], self.data[offset + 11],
-                           self.data[offset + 12], self.data[offset + 13],
-                           self.data[offset + 14], self.data[offset + 15]))
+                line += (
+                    "{:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}  "
+                    "{:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}"
+                ).format(
+                    self.data[offset],
+                    self.data[offset + 1],
+                    self.data[offset + 2],
+                    self.data[offset + 3],
+                    self.data[offset + 4],
+                    self.data[offset + 5],
+                    self.data[offset + 6],
+                    self.data[offset + 7],
+                    self.data[offset + 8],
+                    self.data[offset + 9],
+                    self.data[offset + 10],
+                    self.data[offset + 11],
+                    self.data[offset + 12],
+                    self.data[offset + 13],
+                    self.data[offset + 14],
+                    self.data[offset + 15],
+                )
             except IndexError:
                 # do the slower version
                 for i in range(0, 8):
                     try:
-                        line += '{:02X} '.format(self.data[offset + i])
+                        line += "{:02X} ".format(self.data[offset + i])
                     except IndexError:
-                        line += '   '
-                line += ' '
+                        line += "   "
+                line += " "
                 for i in range(8, 16):
                     try:
-                        line += '{:02X} '.format(self.data[offset + i])
+                        line += "{:02X} ".format(self.data[offset + i])
                     except IndexError:
-                        line += '   '
+                        line += "   "
 
             self.puts(0, y, line, self.colors.text)
 
@@ -422,7 +436,7 @@ class HexWindow(textmode.Window):
             y += 1
 
     def draw_view_16bit(self):
-        '''draw hexview for 16 bit words'''
+        """draw hexview for 16 bit words"""
 
         y = 0
         while y < self.bounds.h:
@@ -433,42 +447,53 @@ class HexWindow(textmode.Window):
             # left block
             try:
                 # try fast(er) implementation
-                line += (('{:02X}{:02X}  {:02X}{:02X}  {:02X}{:02X}  {:02X}{:02X}   '
-                          '{:02X}{:02X}  {:02X}{:02X}  {:02X}{:02X}  {:02X}{:02X}').format
-                          (self.data[offset], self.data[offset + 1],
-                           self.data[offset + 2], self.data[offset + 3],
-                           self.data[offset + 4], self.data[offset + 5],
-                           self.data[offset + 6], self.data[offset + 7],
-                           self.data[offset + 8], self.data[offset + 9],
-                           self.data[offset + 10], self.data[offset + 11],
-                           self.data[offset + 12], self.data[offset + 13],
-                           self.data[offset + 14], self.data[offset + 15]))
+                line += (
+                    "{:02X}{:02X}  {:02X}{:02X}  {:02X}{:02X}  {:02X}{:02X}   "
+                    "{:02X}{:02X}  {:02X}{:02X}  {:02X}{:02X}  {:02X}{:02X}"
+                ).format(
+                    self.data[offset],
+                    self.data[offset + 1],
+                    self.data[offset + 2],
+                    self.data[offset + 3],
+                    self.data[offset + 4],
+                    self.data[offset + 5],
+                    self.data[offset + 6],
+                    self.data[offset + 7],
+                    self.data[offset + 8],
+                    self.data[offset + 9],
+                    self.data[offset + 10],
+                    self.data[offset + 11],
+                    self.data[offset + 12],
+                    self.data[offset + 13],
+                    self.data[offset + 14],
+                    self.data[offset + 15],
+                )
             except IndexError:
                 # do the slower version
                 for i in range(0, 4):
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 2])
+                        line += "{:02X}".format(self.data[offset + i * 2])
                     except IndexError:
-                        line += '  '
+                        line += "  "
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 2 + 1])
+                        line += "{:02X}".format(self.data[offset + i * 2 + 1])
                     except IndexError:
-                        line += '  '
-                    line += '  '
+                        line += "  "
+                    line += "  "
 
                 offset += 8
-                line += ' '
+                line += " "
                 # right block
                 for i in range(0, 4):
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 2])
+                        line += "{:02X}".format(self.data[offset + i * 2])
                     except IndexError:
-                        line += '  '
+                        line += "  "
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 2 + 1])
+                        line += "{:02X}".format(self.data[offset + i * 2 + 1])
                     except IndexError:
-                        line += '  '
-                    line += '  '
+                        line += "  "
+                    line += "  "
 
             self.puts(0, y, line, self.colors.text)
 
@@ -476,7 +501,7 @@ class HexWindow(textmode.Window):
             y += 1
 
     def draw_view_32bit(self):
-        '''draw hexview for 32 bit words'''
+        """draw hexview for 32 bit words"""
 
         y = 0
         while y < self.bounds.h:
@@ -487,58 +512,69 @@ class HexWindow(textmode.Window):
             # left block
             try:
                 # try fast(er) implementation
-                line += (('{:02X}{:02X}{:02X}{:02X}    {:02X}{:02X}{:02X}{:02X}     '
-                          '{:02X}{:02X}{:02X}{:02X}    {:02X}{:02X}{:02X}{:02X}').format
-                          (self.data[offset], self.data[offset + 1],
-                           self.data[offset + 2], self.data[offset + 3],
-                           self.data[offset + 4], self.data[offset + 5],
-                           self.data[offset + 6], self.data[offset + 7],
-                           self.data[offset + 8], self.data[offset + 9],
-                           self.data[offset + 10], self.data[offset + 11],
-                           self.data[offset + 12], self.data[offset + 13],
-                           self.data[offset + 14], self.data[offset + 15]))
+                line += (
+                    "{:02X}{:02X}{:02X}{:02X}    {:02X}{:02X}{:02X}{:02X}     "
+                    "{:02X}{:02X}{:02X}{:02X}    {:02X}{:02X}{:02X}{:02X}"
+                ).format(
+                    self.data[offset],
+                    self.data[offset + 1],
+                    self.data[offset + 2],
+                    self.data[offset + 3],
+                    self.data[offset + 4],
+                    self.data[offset + 5],
+                    self.data[offset + 6],
+                    self.data[offset + 7],
+                    self.data[offset + 8],
+                    self.data[offset + 9],
+                    self.data[offset + 10],
+                    self.data[offset + 11],
+                    self.data[offset + 12],
+                    self.data[offset + 13],
+                    self.data[offset + 14],
+                    self.data[offset + 15],
+                )
             except IndexError:
                 # do the slower version
                 for i in range(0, 2):
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 4])
+                        line += "{:02X}".format(self.data[offset + i * 4])
                     except IndexError:
-                        line += '  '
+                        line += "  "
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 4 + 1])
+                        line += "{:02X}".format(self.data[offset + i * 4 + 1])
                     except IndexError:
-                        line += '  '
+                        line += "  "
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 4 + 2])
+                        line += "{:02X}".format(self.data[offset + i * 4 + 2])
                     except IndexError:
-                        line += '  '
+                        line += "  "
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 4 + 3])
+                        line += "{:02X}".format(self.data[offset + i * 4 + 3])
                     except IndexError:
-                        line += '  '
-                    line += '    '
+                        line += "  "
+                    line += "    "
 
                 offset += 8
-                line += ' '
+                line += " "
                 # right block
                 for i in range(0, 2):
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 4])
+                        line += "{:02X}".format(self.data[offset + i * 4])
                     except IndexError:
-                        line += '  '
+                        line += "  "
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 4 + 1])
+                        line += "{:02X}".format(self.data[offset + i * 4 + 1])
                     except IndexError:
-                        line += '  '
+                        line += "  "
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 4 + 2])
+                        line += "{:02X}".format(self.data[offset + i * 4 + 2])
                     except IndexError:
-                        line += '  '
+                        line += "  "
                     try:
-                        line += '{:02X}'.format(self.data[offset + i * 4 + 3])
+                        line += "{:02X}".format(self.data[offset + i * 4 + 3])
                     except IndexError:
-                        line += '  '
-                    line += '    '
+                        line += "  "
+                    line += "    "
 
             self.puts(0, y, line, self.colors.text)
 
@@ -546,32 +582,31 @@ class HexWindow(textmode.Window):
             y += 1
 
     def draw_ascii(self, y):
-        '''draw ascii bytes for line y'''
+        """draw ascii bytes for line y"""
 
         invis = []
-        line = ''
+        line = ""
         offset = self.address + y * 16
         for i in range(0, 16):
             try:
                 ch = self.data[offset + i]
-                if ord(' ') <= ch <= ord('~'):
+                if ord(" ") <= ch <= ord("~"):
                     line += chr(ch)
                 else:
-                    line += '.'
+                    line += "."
                     invis.append(i)
             except IndexError:
-                ch = ' '
+                ch = " "
 
         # put the ASCII bytes line
         self.puts(self.ascii_offset, y, line, self.colors.text)
 
         # color invisibles
         for i in invis:
-            self.color_putch(self.ascii_offset + i, y,
-                             self.colors.invisibles)
+            self.color_putch(self.ascii_offset + i, y, self.colors.invisibles)
 
-    def draw_cursor(self, clear=False, mark=None):          # pylint: disable=arguments-differ
-        '''draw cursor'''
+    def draw_cursor(self, clear=False, mark=None):  # pylint: disable=arguments-differ
+        """draw cursor"""
 
         if not self.flags & textmode.Window.FOCUS:
             clear = True
@@ -589,8 +624,7 @@ class HexWindow(textmode.Window):
 
         offset = self.address + self.cursor_y * 16 + self.cursor_x
         x = self.hexview_position(offset)
-        self.draw_cursor_at(self.bytes_offset + x, self.cursor_y, color,
-                            clear)
+        self.draw_cursor_at(self.bytes_offset + x, self.cursor_y, color, clear)
 
         y = self.cursor_y
         ch = self.data[self.address + y * 16 + self.cursor_x]
@@ -599,40 +633,38 @@ class HexWindow(textmode.Window):
         self.update_values()
 
     def draw_ascii_cursor(self, ch, color, clear):
-        '''draw ascii cursor'''
+        """draw ascii cursor"""
 
         if clear:
             color = self.colors.text
         else:
             color = self.colors.cursor
 
-        if ord(' ') <= ch <= ord('~'):
+        if ord(" ") <= ch <= ord("~"):
             ch = chr(ch)
         else:
-            ch = '.'
+            ch = "."
             if clear:
                 color = self.colors.invisibles
 
         alt = not clear
-        self.color_putch(self.ascii_offset + self.cursor_x, self.cursor_y,
-                         color, alt)
+        self.color_putch(self.ascii_offset + self.cursor_x, self.cursor_y, color, alt)
 
     def draw_cursor_at(self, x, y, color, clear):
-        '''draw hex bytes cursor at x, y'''
+        """draw hex bytes cursor at x, y"""
 
         alt = not clear
-        textmode.VIDEO.color_hline(self.bounds.x + x, self.bounds.y + y,
-                                   2, color, alt)
+        textmode.VIDEO.color_hline(self.bounds.x + x, self.bounds.y + y, 2, color, alt)
 
     def clear_cursor(self):
-        '''clear the cursor'''
+        """clear the cursor"""
 
         self.draw_cursor(clear=True)
 
     def hexview_position(self, offset):
-        '''Returns x position in hex view for offset
+        """Returns x position in hex view for offset
         Returns -1 for out of bounds offset
-        '''
+        """
 
         if offset < 0:
             return -1
@@ -666,7 +698,7 @@ class HexWindow(textmode.Window):
         return x
 
     def draw_selection(self):
-        '''draw selection'''
+        """draw selection"""
 
         start = self.selection_start
         if start < self.address:
@@ -683,49 +715,68 @@ class HexWindow(textmode.Window):
 
         # ASCII view
         if starty == endy:
-            textmode.VIDEO.color_hline((self.bounds.x + self.ascii_offset +
-                                        startx),
-                                       self.bounds.y + starty, endx - startx,
-                                       self.colors.cursor)
+            textmode.VIDEO.color_hline(
+                (self.bounds.x + self.ascii_offset + startx),
+                self.bounds.y + starty,
+                endx - startx,
+                self.colors.cursor,
+            )
         else:
-            textmode.VIDEO.color_hline((self.bounds.x + self.ascii_offset +
-                                        startx),
-                                       self.bounds.y + starty, 16 - startx,
-                                       self.colors.cursor)
+            textmode.VIDEO.color_hline(
+                (self.bounds.x + self.ascii_offset + startx),
+                self.bounds.y + starty,
+                16 - startx,
+                self.colors.cursor,
+            )
             for j in range(starty + 1, endy):
-                textmode.VIDEO.color_hline((self.bounds.x +
-                                            self.ascii_offset),
-                                           self.bounds.y + j, 16,
-                                           self.colors.cursor)
-            textmode.VIDEO.color_hline(self.bounds.x + self.ascii_offset,
-                                       self.bounds.y + endy, endx,
-                                       self.colors.cursor)
+                textmode.VIDEO.color_hline(
+                    (self.bounds.x + self.ascii_offset),
+                    self.bounds.y + j,
+                    16,
+                    self.colors.cursor,
+                )
+            textmode.VIDEO.color_hline(
+                self.bounds.x + self.ascii_offset,
+                self.bounds.y + endy,
+                endx,
+                self.colors.cursor,
+            )
 
         # hex view start/end position depend on viewing mode
         startx = self.hexview_position(start)
         endx = self.hexview_position(end)
 
         if starty == endy:
-            textmode.VIDEO.color_hline((self.bounds.x + self.bytes_offset +
-                                        startx),
-                                       self.bounds.y + starty, endx - startx,
-                                       self.colors.cursor)
+            textmode.VIDEO.color_hline(
+                (self.bounds.x + self.bytes_offset + startx),
+                self.bounds.y + starty,
+                endx - startx,
+                self.colors.cursor,
+            )
         else:
             w = 16 * 3
-            textmode.VIDEO.color_hline((self.bounds.x + self.bytes_offset +
-                                        startx),
-                                       self.bounds.y + starty, w - startx,
-                                       self.colors.cursor)
+            textmode.VIDEO.color_hline(
+                (self.bounds.x + self.bytes_offset + startx),
+                self.bounds.y + starty,
+                w - startx,
+                self.colors.cursor,
+            )
             for j in range(starty + 1, endy):
-                textmode.VIDEO.color_hline(self.bounds.x + self.bytes_offset,
-                                           self.bounds.y + j, w,
-                                           self.colors.cursor)
-            textmode.VIDEO.color_hline(self.bounds.x + self.bytes_offset,
-                                       self.bounds.y + endy, endx,
-                                       self.colors.cursor)
+                textmode.VIDEO.color_hline(
+                    self.bounds.x + self.bytes_offset,
+                    self.bounds.y + j,
+                    w,
+                    self.colors.cursor,
+                )
+            textmode.VIDEO.color_hline(
+                self.bounds.x + self.bytes_offset,
+                self.bounds.y + endy,
+                endx,
+                self.colors.cursor,
+            )
 
     def update_values(self):
-        '''update value view'''
+        """update value view"""
 
         if not self.mode & HexWindow.MODE_VALUES:
             return
@@ -733,7 +784,7 @@ class HexWindow(textmode.Window):
         # get data at cursor
         offset = self.address + self.cursor_y * 16 + self.cursor_x
         try:
-            data = self.data[offset:offset + 8]
+            data = self.data[offset : offset + 8]
         except IndexError:
             # get data, do zero padding
             data = bytearray(8)
@@ -746,18 +797,17 @@ class HexWindow(textmode.Window):
         self.valueview.update(data)
 
     def mark_address(self, y, color=-1):
-        '''only used to draw a marked address
+        """only used to draw a marked address
         Marked addresses are copied into the jumpaddr history
-        '''
+        """
 
         if color == -1:
             color = textmode.video_color(WHITE, RED, bold=True)
 
-        textmode.VIDEO.color_hline(self.bounds.x, self.bounds.y + y, 8,
-                                   color)
+        textmode.VIDEO.color_hline(self.bounds.x, self.bounds.y + y, 8, color)
 
     def scroll_up(self, nlines=1):
-        '''scroll nlines up'''
+        """scroll nlines up"""
 
         self.address -= nlines * 16
         if self.address < 0:
@@ -766,7 +816,7 @@ class HexWindow(textmode.Window):
         self.draw()
 
     def scroll_down(self, nlines=1):
-        '''scroll nlines down'''
+        """scroll nlines down"""
 
         addr = self.address + nlines * 16
 
@@ -781,7 +831,7 @@ class HexWindow(textmode.Window):
             self.draw()
 
     def move_up(self):
-        '''move cursor up'''
+        """move cursor up"""
 
         if not self.cursor_y and not self.address:
             return
@@ -797,7 +847,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def move_down(self):
-        '''move cursor down'''
+        """move cursor down"""
 
         if self.cursor_y >= self.bounds.h - 1:
             # scroll down
@@ -819,7 +869,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def move_left(self):
-        '''move cursor left'''
+        """move cursor left"""
 
         if not self.cursor_x and not self.cursor_y:
             if not self.address:
@@ -840,7 +890,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def move_right(self):
-        '''move cursor right'''
+        """move cursor right"""
 
         if self.cursor_x >= 15 and self.cursor_y >= self.bounds.h - 1:
             # scroll down
@@ -868,7 +918,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def roll_left(self):
-        '''move left by one byte'''
+        """move left by one byte"""
 
         if not self.address:
             return
@@ -878,7 +928,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def roll_right(self):
-        '''move right by one byte'''
+        """move right by one byte"""
 
         top = len(self.data) - self.bounds.h * 16
         if self.address < top:
@@ -887,7 +937,7 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def pageup(self):
-        '''page up'''
+        """page up"""
 
         if not self.address:
             if not self.cursor_y:
@@ -909,7 +959,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def pagedown(self):
-        '''page down'''
+        """page down"""
 
         if self.cursor_y == 0:
             self.clear_cursor()
@@ -929,7 +979,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def move_home(self):
-        '''go to top of document'''
+        """go to top of document"""
 
         if not self.address:
             if not self.cursor_x and not self.cursor_y:
@@ -945,7 +995,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def move_end(self):
-        '''go to last page of document'''
+        """go to last page of document"""
 
         pagesize = self.bounds.h * 16
         top = len(self.data) - pagesize
@@ -969,23 +1019,20 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def select_view(self, key):
-        '''set view option'''
+        """set view option"""
 
         update = False
-        if (key == '1' and
-                self.mode & HexWindow.MODE_8BIT != HexWindow.MODE_8BIT):
+        if key == "1" and self.mode & HexWindow.MODE_8BIT != HexWindow.MODE_8BIT:
             self.mode &= HexWindow.CLEAR_VIEWMODE
             self.mode |= HexWindow.MODE_8BIT
             update = True
 
-        elif (key == '2' and
-                self.mode & HexWindow.MODE_16BIT != HexWindow.MODE_16BIT):
+        elif key == "2" and self.mode & HexWindow.MODE_16BIT != HexWindow.MODE_16BIT:
             self.mode &= HexWindow.CLEAR_VIEWMODE
             self.mode |= HexWindow.MODE_16BIT
             update = True
 
-        elif (key == '4' and
-                self.mode & HexWindow.MODE_32BIT != HexWindow.MODE_32BIT):
+        elif key == "4" and self.mode & HexWindow.MODE_32BIT != HexWindow.MODE_32BIT:
             self.mode &= HexWindow.CLEAR_VIEWMODE
             self.mode |= HexWindow.MODE_32BIT
             update = True
@@ -995,11 +1042,10 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def mode_selection(self):
-        '''toggle selection mode'''
+        """toggle selection mode"""
 
         if not self.mode & HexWindow.MODE_SELECT:
-            self.selection_start = (self.address + self.cursor_y * 16 +
-                                    self.cursor_x)
+            self.selection_start = self.address + self.cursor_y * 16 + self.cursor_x
             self.selection_end = self.selection_start
 
         self.mode ^= HexWindow.MODE_SELECT
@@ -1012,7 +1058,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def update_selection(self):
-        '''update selection start/end'''
+        """update selection start/end"""
 
         if self.mode & HexWindow.MODE_SELECT:
             old_addr = self.old_addr + self.old_y * 16 + self.old_x
@@ -1032,30 +1078,30 @@ class HexWindow(textmode.Window):
             if self.selection_start > self.selection_end:
                 # swap start, end
                 # and PEP-8 looks amazingly stupid here
-                (self.selection_start,
-                 self.selection_end) = (self.selection_end,
-                                        self.selection_start)
+                (self.selection_start, self.selection_end) = (
+                    self.selection_end,
+                    self.selection_start,
+                )
 
             self.draw()
 
     def search_error(self, msg):
-        '''display error message for search functions'''
+        """display error message for search functions"""
 
         self.ignore_focus = True
         self.search.show()
-        self.search.cputs(0, 0, msg, textmode.video_color(WHITE, RED,
-                                                          bold=True))
+        self.search.cputs(0, 0, msg, textmode.video_color(WHITE, RED, bold=True))
         getch()
         self.search.hide()
 
     def find(self, again=False):
-        '''text search'''
+        """text search"""
 
         self.searchdir = HexWindow.FORWARD
-        searchtext = ''
+        searchtext = ""
 
         if not again:
-            self.search.prompt = '/'
+            self.search.prompt = "/"
             self.ignore_focus = True
             self.search.show()
             ret = self.search.runloop()
@@ -1086,7 +1132,7 @@ class HexWindow(textmode.Window):
             offset = -1
 
         if offset == -1:
-            self.search_error('Not found')
+            self.search_error("Not found")
             return
 
         # text was found at offset
@@ -1112,13 +1158,13 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def find_backwards(self, again=False):
-        '''text search backwards'''
+        """text search backwards"""
 
         self.searchdir = HexWindow.BACKWARD
-        searchtext = ''
+        searchtext = ""
 
         if not again:
-            self.search.prompt = '?'
+            self.search.prompt = "?"
             self.ignore_focus = True
             self.search.show()
             ret = self.search.runloop()
@@ -1146,7 +1192,7 @@ class HexWindow(textmode.Window):
             offset = -1
 
         if offset == -1:
-            self.search_error('Not found')
+            self.search_error("Not found")
             return
 
         # text was found at offset
@@ -1172,10 +1218,10 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def find_hex(self, again=False):
-        '''search hex string'''
+        """search hex string"""
 
         self.searchdir = HexWindow.FORWARD
-        searchtext = ''
+        searchtext = ""
 
         if not again:
             self.ignore_focus = True
@@ -1198,21 +1244,21 @@ class HexWindow(textmode.Window):
             return
 
         # convert ascii searchtext to raw byte string
-        searchtext = searchtext.replace(' ', '')
+        searchtext = searchtext.replace(" ", "")
         if not searchtext:
             return
 
         if len(searchtext) & 1:
-            self.search_error('Invalid byte string (uneven number of digits)')
+            self.search_error("Invalid byte string (uneven number of digits)")
             return
 
-        raw = ''
+        raw = ""
         for x in range(0, len(searchtext), 2):
-            hex_string = searchtext[x:x + 2]
+            hex_string = searchtext[x : x + 2]
             try:
                 value = int(hex_string, 16)
             except ValueError:
-                self.search_error('Invalid value in byte string')
+                self.search_error("Invalid value in byte string")
                 return
 
             raw += chr(value)
@@ -1228,7 +1274,7 @@ class HexWindow(textmode.Window):
             offset = -1
 
         if offset == -1:
-            self.search_error('Not found')
+            self.search_error("Not found")
             return
 
         # text was found at offset
@@ -1254,7 +1300,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def jump_address(self):
-        '''jump to address'''
+        """jump to address"""
 
         self.ignore_focus = True
         self.jumpaddr.show()
@@ -1263,14 +1309,14 @@ class HexWindow(textmode.Window):
             return
 
         text = self.jumpaddr.textfield.text
-        text = text.replace(' ', '')
+        text = text.replace(" ", "")
         if not text:
             return
 
         try:
             addr = int(text, 16)
         except ValueError:
-            self.search_error('Invalid address')
+            self.search_error("Invalid address")
             return
 
         # make addr appear at cursor_y
@@ -1288,9 +1334,9 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def plus_offset(self):
-        '''add offset'''
+        """add offset"""
 
-        self.addaddr.prompt = '@+'
+        self.addaddr.prompt = "@+"
         self.ignore_focus = True
         self.addaddr.show()
         ret = self.addaddr.runloop()
@@ -1298,17 +1344,17 @@ class HexWindow(textmode.Window):
             return
 
         text = self.addaddr.textfield.text
-        text = text.replace(' ', '')
+        text = text.replace(" ", "")
         if not text:
             return
 
         try:
-            if text[0] in '0ABCDEF':
+            if text[0] in "0ABCDEF":
                 offset = int(text, 16)
             else:
                 offset = int(text, 10)
         except ValueError:
-            self.search_error('Invalid address')
+            self.search_error("Invalid address")
             return
 
         curr_addr = self.address + self.cursor_y * 16 + self.cursor_x
@@ -1340,9 +1386,9 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def minus_offset(self):
-        '''minus offset'''
+        """minus offset"""
 
-        self.addaddr.prompt = '@-'
+        self.addaddr.prompt = "@-"
         self.ignore_focus = True
         self.addaddr.show()
         ret = self.addaddr.runloop()
@@ -1350,17 +1396,17 @@ class HexWindow(textmode.Window):
             return
 
         text = self.addaddr.textfield.text
-        text = text.replace(' ', '')
+        text = text.replace(" ", "")
         if not text:
             return
 
         try:
-            if text[0] in '0ABCDEF':
+            if text[0] in "0ABCDEF":
                 offset = int(text, 16)
             else:
                 offset = int(text, 10)
         except ValueError:
-            self.search_error('Invalid address')
+            self.search_error("Invalid address")
             return
 
         curr_addr = self.address + self.cursor_y * 16 + self.cursor_x
@@ -1392,10 +1438,10 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def copy_address(self):
-        '''copy current address to jump history'''
+        """copy current address to jump history"""
 
         addr = self.address + self.cursor_y * 16 + self.cursor_x
-        self.jumpaddr.textfield.history.append('{:08X}'.format(addr))
+        self.jumpaddr.textfield.history.append("{:08X}".format(addr))
 
         # give visual feedback
         color = textmode.video_color(WHITE, RED, bold=True)
@@ -1403,7 +1449,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor(mark=color)
 
     def move_begin_line(self):
-        '''goto beginning of line'''
+        """goto beginning of line"""
 
         if self.cursor_x != 0:
             self.clear_cursor()
@@ -1411,7 +1457,7 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def move_end_line(self):
-        '''goto end of line'''
+        """goto end of line"""
 
         if self.cursor_x != 15:
             self.clear_cursor()
@@ -1419,7 +1465,7 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def move_top(self):
-        '''goto top of screen'''
+        """goto top of screen"""
 
         if self.cursor_y != 0:
             self.clear_cursor()
@@ -1427,7 +1473,7 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def move_middle(self):
-        '''goto middle of screen'''
+        """goto middle of screen"""
 
         y = self.bounds.h // 2
         if self.cursor_y != y:
@@ -1436,7 +1482,7 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def move_bottom(self):
-        '''goto bottom of screen'''
+        """goto bottom of screen"""
 
         if self.cursor_y != self.bounds.h - 1:
             self.clear_cursor()
@@ -1444,7 +1490,7 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def move_word(self):
-        '''move to next word'''
+        """move to next word"""
 
         end = len(self.data) - 1
         addr = self.address + self.cursor_y * 16 + self.cursor_x
@@ -1484,7 +1530,7 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def move_word_back(self):
-        '''move to previous word'''
+        """move to previous word"""
 
         addr = self.address + self.cursor_y * 16 + self.cursor_x
 
@@ -1523,9 +1569,9 @@ class HexWindow(textmode.Window):
         self.draw_cursor()
 
     def command(self):
-        '''command mode
+        """command mode
         Returns 0 (do nothing) or app code
-        '''
+        """
 
         self.ignore_focus = True
         self.cmdline.show()
@@ -1534,70 +1580,75 @@ class HexWindow(textmode.Window):
             return 0
 
         cmd = self.cmdline.textfield.text
-        if ' ' in cmd:
-            cmd, arg = cmd.split(' ', 1)
+        if " " in cmd:
+            cmd, arg = cmd.split(" ", 1)
         else:
             arg = None
         if not cmd:
             return 0
 
-        if cmd == 'help' or cmd == '?':                 # pylint: disable=consider-using-in
+        if cmd == "help" or cmd == "?":  # pylint: disable=consider-using-in
             self.show_help()
 
-        elif cmd in ('about', 'version'):
+        elif cmd in ("about", "version"):
             self.show_about()
 
-        elif cmd == 'license':
+        elif cmd == "license":
             self.show_license()
 
-        elif cmd in ('q', 'q!', 'quit'):
+        elif cmd in ("q", "q!", "quit"):
             return textmode.QUIT
 
-        elif cmd in ('wq', 'wq!', 'ZZ', 'exit'):
+        elif cmd in ("wq", "wq!", "ZZ", "exit"):
             return textmode.EXIT
 
-        elif cmd == 'load':
+        elif cmd == "load":
             self.loadfile(arg)
 
-        elif cmd in ('print', 'values'):
+        elif cmd in ("print", "values"):
             self.print_values()
 
-        elif cmd == 'big':
+        elif cmd == "big":
             self.set_big_endian()
 
-        elif cmd == 'little':
+        elif cmd == "little":
             self.set_little_endian()
 
-        elif cmd == '0':
+        elif cmd == "0":
             self.move_home()
 
         else:
             self.ignore_focus = True
             self.cmdline.show()
-            self.cmdline.cputs(0, 0, "Unknown command '{}'".format(cmd),
-                               textmode.video_color(WHITE, RED, bold=True))
+            self.cmdline.cputs(
+                0,
+                0,
+                "Unknown command '{}'".format(cmd),
+                textmode.video_color(WHITE, RED, bold=True),
+            )
             getch()
             self.cmdline.hide()
 
         return 0
 
     def loadfile(self, filename):
-        '''load file'''
+        """load file"""
 
         if not filename:
             return
 
-        if filename[0] == '~':
+        if filename[0] == "~":
             filename = os.path.expanduser(filename)
-        if '$' in filename:
+        if "$" in filename:
             filename = os.path.expandvars(filename)
         try:
             self.load(filename)
         except OSError as err:
             self.ignore_focus = True
             self.cmdline.show()
-            self.cmdline.cputs(0, 0, err.strerror,
-                               textmode.video_color(WHITE, RED, bold=True))
+            self.cmdline.cputs(
+                0, 0, err.strerror, textmode.video_color(WHITE, RED, bold=True)
+            )
             getch()
             self.cmdline.hide()
         else:
@@ -1605,7 +1656,7 @@ class HexWindow(textmode.Window):
             self.draw_cursor()
 
     def show_help(self):
-        '''show help window'''
+        """show help window"""
 
         win = HelpWindow(self)
         win.show()
@@ -1613,26 +1664,28 @@ class HexWindow(textmode.Window):
         win.close()
 
     def show_about(self):
-        '''show About box'''
+        """show About box"""
 
         win = AboutBox()
         win.show()
         win.runloop()
 
     def show_license(self):
-        '''show the software license'''
+        """show the software license"""
 
         win = LicenseBox()
         win.show()
         if win.runloop() == 0:
             # license not accepted
             textmode.terminate()
-            print ("If you do not accept the license, you really shouldn't "
-                   "be using this software")
+            print(
+                "If you do not accept the license, you really shouldn't "
+                "be using this software"
+            )
             sys.exit(1)
 
     def print_values(self):
-        '''toggle values subwindow'''
+        """toggle values subwindow"""
 
         self.mode ^= HexWindow.MODE_VALUES
         if self.mode & HexWindow.MODE_VALUES:
@@ -1647,7 +1700,7 @@ class HexWindow(textmode.Window):
         self.update_values()
 
     def shrink_window(self, lines):
-        '''shrink main window by n lines'''
+        """shrink main window by n lines"""
 
         self.hide()
         self.frame.h -= lines
@@ -1659,7 +1712,7 @@ class HexWindow(textmode.Window):
             self.cursor_y = self.bounds.h - 1
 
     def expand_window(self, lines):
-        '''grow main window by n lines'''
+        """grow main window by n lines"""
 
         self.hide()
         self.frame.h += lines
@@ -1668,7 +1721,7 @@ class HexWindow(textmode.Window):
         self.show()
 
     def toggle_endianness(self):
-        '''toggle endianness in values subwindow'''
+        """toggle endianness in values subwindow"""
 
         if self.valueview.endian == ValueSubWindow.BIG_ENDIAN:
             self.valueview.endian = ValueSubWindow.LITTLE_ENDIAN
@@ -1679,7 +1732,7 @@ class HexWindow(textmode.Window):
         self.valueview.update_status()
 
     def set_big_endian(self):
-        '''set big endian mode'''
+        """set big endian mode"""
 
         if self.valueview.endian != ValueSubWindow.BIG_ENDIAN:
             self.valueview.endian = ValueSubWindow.BIG_ENDIAN
@@ -1687,7 +1740,7 @@ class HexWindow(textmode.Window):
             self.valueview.update_status()
 
     def set_little_endian(self):
-        '''set little endian mode'''
+        """set little endian mode"""
 
         if self.valueview.endian != ValueSubWindow.LITTLE_ENDIAN:
             self.valueview.endian = ValueSubWindow.LITTLE_ENDIAN
@@ -1696,20 +1749,19 @@ class HexWindow(textmode.Window):
 
     def check_and_getdata(self):
         data = 0
-        ret = API.ReadProcessMemory(self.address,1024,False)
+        ret = API.ReadProcessMemory(self.address, 1024, False)
         if ret == False:
-            data = bytearray(b"\x00"*1024)
+            data = bytearray(b"\x00" * 1024)
         else:
             data = bytearray(ret)
 
-        for i,d in enumerate(data):
-            self.data[i+self.address] = d
-        
+        for i, d in enumerate(data):
+            self.data[i + self.address] = d
 
     def runloop(self):
-        '''run the input loop
+        """run the input loop
         Returns state change code
-        '''
+        """
 
         self.gain_focus()
         while True:
@@ -1717,159 +1769,175 @@ class HexWindow(textmode.Window):
             self.check_and_getdata()
             self.draw()
             self.draw_cursor()
-            
+
             self.old_addr = self.address
             self.old_x = self.cursor_x
             self.old_y = self.cursor_y
-            
+
             key = getch()
 
-            #memory edit
-            if key in ('1', '2', '3', '4', '5','6','7','8','9','a','b','c','d','e','f'):
-                pos = self.address+self.cursor_x+self.cursor_y*16
+            # memory edit
+            if key in (
+                "0",
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "a",
+                "b",
+                "c",
+                "d",
+                "e",
+                "f",
+            ):
+                pos = self.address + self.cursor_x + self.cursor_y * 16
                 orig = self.data[pos]
-                if self.edit_position==0:
-                    self.data[pos] = (0x10*int(key,16)) | (orig&0x0f)
-                    self.edit_position=1
-                    params={"address": pos,"buffer":[self.data[pos]]}
-                    API.WriteProcessMemory(pos,[self.data[pos]])
-                elif self.edit_position==1:
-                    self.data[pos] = (0x01*int(key,16)) | (orig&0xf0)
-                    self.edit_position=2  
-                    params={"address": pos,"buffer":[self.data[pos]]}
-                    API.WriteProcessMemory(pos,[self.data[pos]])
+                if self.edit_position == 0:
+                    self.data[pos] = (0x10 * int(key, 16)) | (orig & 0x0F)
+                    self.edit_position = 1
+                    params = {"address": pos, "buffer": [self.data[pos]]}
+                    API.WriteProcessMemory(pos, [self.data[pos]])
+                elif self.edit_position == 1:
+                    self.data[pos] = (0x01 * int(key, 16)) | (orig & 0xF0)
+                    self.edit_position = 2
+                    params = {"address": pos, "buffer": [self.data[pos]]}
+                    API.WriteProcessMemory(pos, [self.data[pos]])
                 else:
-                    self.edit_position=0
-                    self.move_right()    
-            elif key!="0x-1":
-                self.edit_position=0
-            
+                    self.edit_position = 0
+                    self.move_right()
+            elif key != "0x-1":
+                self.edit_position = 0
+
             if key == KEY_ESC:
                 if self.mode & HexWindow.MODE_SELECT:
                     self.mode_selection()
-            elif key == KEY_UP or key == 'k':               # pylint: disable=consider-using-in
+            elif key == KEY_UP or key == "k":  # pylint: disable=consider-using-in
                 self.move_up()
 
-            elif key == KEY_DOWN or key == 'j':             # pylint: disable=consider-using-in
+            elif key == KEY_DOWN or key == "j":  # pylint: disable=consider-using-in
                 self.move_down()
 
-            elif key == KEY_LEFT or key == 'h':             # pylint: disable=consider-using-in
+            elif key == KEY_LEFT or key == "h":  # pylint: disable=consider-using-in
                 self.move_left()
 
-            elif key == KEY_RIGHT or key == 'l':            # pylint: disable=consider-using-in
+            elif key == KEY_RIGHT or key == "l":  # pylint: disable=consider-using-in
                 self.move_right()
 
-            elif key == '<' or key == ',':                  # pylint: disable=consider-using-in
+            elif key == "<" or key == ",":  # pylint: disable=consider-using-in
                 self.roll_left()
 
-            elif key == '>' or key == '.':                  # pylint: disable=consider-using-in
+            elif key == ">" or key == ".":  # pylint: disable=consider-using-in
                 self.roll_right()
 
-            elif key == KEY_PAGEUP or key == 'Ctrl-U':      # pylint: disable=consider-using-in
+            elif (
+                key == KEY_PAGEUP or key == "Ctrl-U"
+            ):  # pylint: disable=consider-using-in
                 self.pageup()
 
-            elif key == KEY_PAGEDOWN or key == 'Ctrl-D':    # pylint: disable=consider-using-in
+            elif (
+                key == KEY_PAGEDOWN or key == "Ctrl-D"
+            ):  # pylint: disable=consider-using-in
                 self.pagedown()
 
-            elif key == KEY_HOME or key == 'g':             # pylint: disable=consider-using-in
+            elif key == KEY_HOME or key == "g":  # pylint: disable=consider-using-in
                 self.move_home()
 
-            elif key == KEY_END or key == 'G':              # pylint: disable=consider-using-in
+            elif key == KEY_END or key == "G":  # pylint: disable=consider-using-in
                 self.move_end()
 
-            elif key in ('Q', 'W', 'E'):
-                keys = ['Q','W','E']
-                key = str(2**(keys.index(key)))
+            elif key in ("Q", "W", "E"):
+                keys = ["Q", "W", "E"]
+                key = str(2 ** (keys.index(key)))
                 self.select_view(key)
 
-            elif key == 'v':
+            elif key == "v":
                 self.mode_selection()
 
-            elif key == ':':
+            elif key == ":":
                 # command mode
                 ret = self.command()
                 if ret != 0:
                     return ret
 
-            elif key == '?':
+            elif key == "?":
                 # find backwards
                 self.find_backwards()
 
-            elif key == '/' or key == 'Ctrl-F':# pylint: disable=consider-using-in
+            elif key == "/" or key == "Ctrl-F":  # pylint: disable=consider-using-in
                 self.find()
-            
-            elif key == 'F':
-                #forward
-                response = requests.get('http://127.0.0.1:5000/forward')
 
-            elif key == 'n' or key == 'Ctrl-G':             # pylint: disable=consider-using-in
+            elif key == "n" or key == "Ctrl-G":  # pylint: disable=consider-using-in
                 # search again
                 if self.searchdir == HexWindow.FORWARD:
                     self.find(again=True)
                 elif self.searchdir == HexWindow.BACKWARD:
                     self.find_backwards(again=True)
 
-            elif key == 'x' or key == 'Ctrl-X':             # pylint: disable=consider-using-in
+            elif key == "x" or key == "Ctrl-X":  # pylint: disable=consider-using-in
                 self.find_hex()
 
-            elif key == '0' or key == '^':                  # pylint: disable=consider-using-in
+            elif key == "^":  # pylint: disable=consider-using-in
                 self.move_begin_line()
 
-            elif key == '$':
+            elif key == "$":
                 self.move_end_line()
 
-            elif key == 'H':
+            elif key == "H":
                 self.move_top()
 
-            elif key == 'M':
+            elif key == "M":
                 self.move_middle()
 
-            elif key == 'L':
+            elif key == "L":
                 self.move_bottom()
 
-            elif key == '@':
+            elif key == "@":
                 self.jump_address()
 
-            elif key == '+':
+            elif key == "+":
                 self.plus_offset()
 
-            elif key == '-':
+            elif key == "-":
                 self.minus_offset()
 
-            elif key == 'm':
+            elif key == "m":
                 self.copy_address()
 
-            elif key == 'w':
+            elif key == "w":
                 self.move_word()
 
-            elif key == 'B':
+            elif key == "B":
                 self.move_word_back()
 
-            elif key == 'p':
+            elif key == "p":
                 self.print_values()
 
-            elif key == 'P':
+            elif key == "P":
                 self.toggle_endianness()
 
 
-
 class ValueSubWindow(textmode.Window):
-    '''subwindow that shows values'''
+    """subwindow that shows values"""
 
     BIG_ENDIAN = 1
     LITTLE_ENDIAN = 2
 
     def __init__(self, x, y, w, h, colors):
-        '''initialize'''
+        """initialize"""
 
-        super().__init__(x, y, w, h, colors, 'Values', border=True, shadow=False)
-        if sys.byteorder == 'big':
+        super().__init__(x, y, w, h, colors, "Values", border=True, shadow=False)
+        if sys.byteorder == "big":
             self.endian = ValueSubWindow.BIG_ENDIAN
         else:
             self.endian = ValueSubWindow.LITTLE_ENDIAN
 
     def resize_event(self):
-        '''the terminal was resized'''
+        """the terminal was resized"""
 
         # use fixed width and height, but
         # the position may change; stick to bottom
@@ -1883,7 +1951,7 @@ class ValueSubWindow(textmode.Window):
         self.rect.y = self.frame.y
 
     def draw(self):
-        '''draw the value subwindow'''
+        """draw the value subwindow"""
 
         super().draw()
 
@@ -1891,66 +1959,82 @@ class ValueSubWindow(textmode.Window):
         self.update_status()
 
     def update(self, data):
-        '''show the values for data'''
+        """show the values for data"""
 
-        int8 = struct.unpack_from('@b', data)[0]
-        uint8 = struct.unpack_from('@B', data)[0]
+        int8 = struct.unpack_from("@b", data)[0]
+        uint8 = struct.unpack_from("@B", data)[0]
 
         if self.endian == ValueSubWindow.BIG_ENDIAN:
-            fmt = '>'
+            fmt = ">"
         elif self.endian == ValueSubWindow.LITTLE_ENDIAN:
-            fmt = '<'
+            fmt = "<"
         else:
-            fmt = '='
+            fmt = "="
 
-        int16 = struct.unpack_from(fmt + 'h', data)[0]
-        uint16 = struct.unpack_from(fmt + 'H', data)[0]
-        int32 = struct.unpack_from(fmt + 'i', data)[0]
-        uint32 = struct.unpack_from(fmt + 'I', data)[0]
-        int64 = struct.unpack_from(fmt + 'q', data)[0]
-        uint64 = struct.unpack_from(fmt + 'Q', data)[0]
-        float32 = struct.unpack_from(fmt + 'f', data)[0]
-        float64 = struct.unpack_from(fmt + 'd', data)[0]
+        int16 = struct.unpack_from(fmt + "h", data)[0]
+        uint16 = struct.unpack_from(fmt + "H", data)[0]
+        int32 = struct.unpack_from(fmt + "i", data)[0]
+        uint32 = struct.unpack_from(fmt + "I", data)[0]
+        int64 = struct.unpack_from(fmt + "q", data)[0]
+        uint64 = struct.unpack_from(fmt + "Q", data)[0]
+        float32 = struct.unpack_from(fmt + "f", data)[0]
+        float64 = struct.unpack_from(fmt + "d", data)[0]
 
-        line = ' int8 : {:<20}  uint8 : {:<20}  0x{:02x}'.format(int8, uint8, uint8)            # pylint: disable=(duplicate-string-formatting-argument
+        line = " int8 : {:<20}  uint8 : {:<20}  0x{:02x}".format(
+            int8, uint8, uint8
+        )  # pylint: disable=(duplicate-string-formatting-argument
         self.puts(0, 0, line, self.colors.text)
 
-        line = ' int16: {:<20}  uint16: {:<20}  0x{:04x}'.format(int16, uint16, uint16)         # pylint: disable=(duplicate-string-formatting-argument
+        line = " int16: {:<20}  uint16: {:<20}  0x{:04x}".format(
+            int16, uint16, uint16
+        )  # pylint: disable=(duplicate-string-formatting-argument
         self.puts(0, 1, line, self.colors.text)
 
-        line = ' int32: {:<20}  uint32: {:<20}  0x{:08x}'.format(int32, uint32, uint32)         # pylint: disable=(duplicate-string-formatting-argument
+        line = " int32: {:<20}  uint32: {:<20}  0x{:08x}".format(
+            int32, uint32, uint32
+        )  # pylint: disable=(duplicate-string-formatting-argument
         self.puts(0, 2, line, self.colors.text)
 
-        line = ' int64: {:<20}  uint64: {:<20}  0x{:016x}'.format(int64, uint64, uint64)        # pylint: disable=(duplicate-string-formatting-argument
+        line = " int64: {:<20}  uint64: {:<20}  0x{:016x}".format(
+            int64, uint64, uint64
+        )  # pylint: disable=(duplicate-string-formatting-argument
         self.puts(0, 3, line, self.colors.text)
 
-        line = ' float: {:<20}  double: {:<20}  0x{:016x}'.format(float32, float64, uint64)     # pylint: disable=(duplicate-string-formatting-argument
+        line = " float: {:<20}  double: {:<20}  0x{:016x}".format(
+            float32, float64, uint64
+        )  # pylint: disable=(duplicate-string-formatting-argument
         self.puts(0, 4, line, self.colors.text)
 
     def update_status(self):
-        '''redraw statusline'''
+        """redraw statusline"""
 
         if self.endian == ValueSubWindow.BIG_ENDIAN:
-            text = ' big endian '
+            text = " big endian "
         else:
-            text = ' little endian '
+            text = " little endian "
 
         w = len(text)
 
-        textmode.VIDEO.hline(self.frame.x + self.frame.w - 20,
-                             self.frame.y + self.frame.h - 1, 18,
-                             curses.ACS_HLINE, self.colors.border)
-        textmode.VIDEO.puts(self.frame.x + self.frame.w - w - 1,
-                            self.frame.y + self.frame.h - 1, text,
-                            self.colors.status)
-
+        textmode.VIDEO.hline(
+            self.frame.x + self.frame.w - 20,
+            self.frame.y + self.frame.h - 1,
+            18,
+            curses.ACS_HLINE,
+            self.colors.border,
+        )
+        textmode.VIDEO.puts(
+            self.frame.x + self.frame.w - w - 1,
+            self.frame.y + self.frame.h - 1,
+            text,
+            self.colors.status,
+        )
 
 
 def bytearray_find_backwards(data, search, pos=-1):
-    '''search bytearray backwards for string
+    """search bytearray backwards for string
     Returns index if found or -1 if not found
     May raise ValueError for invalid search
-    '''
+    """
 
     if data is None or not data:
         raise ValueError
@@ -1966,7 +2050,7 @@ def bytearray_find_backwards(data, search, pos=-1):
 
     pos -= len(search)
     while pos >= 0:
-        if data[pos:pos + len(search)] == search:
+        if data[pos : pos + len(search)] == search:
             return pos
 
         pos -= 1
@@ -1975,16 +2059,18 @@ def bytearray_find_backwards(data, search, pos=-1):
 
 
 def hex_inputfilter(key):
-    '''hexadecimal input filter
+    """hexadecimal input filter
     Returns character or None if invalid
-    '''
+    """
 
     val = ord(key)
-    if (ord('0') <= val <= ord('9') or
-            ord('a') <= val <= ord('f') or
-            ord('A') <= val <= ord('F') or
-            val == ord(' ')):
-        if ord('a') <= val <= ord('f'):
+    if (
+        ord("0") <= val <= ord("9")
+        or ord("a") <= val <= ord("f")
+        or ord("A") <= val <= ord("F")
+        or val == ord(" ")
+    ):
+        if ord("a") <= val <= ord("f"):
             key = key.upper()
         return key
 
@@ -1992,27 +2078,29 @@ def hex_inputfilter(key):
 
 
 def isalphanum(ch):
-    '''Returns True if character is alphanumeric'''
+    """Returns True if character is alphanumeric"""
 
-    return (ord('0') <= ch <= ord('9') or
-            ord('a') <= ch <= ord('z') or
-            ord('A') <= ch <= ord('Z') or
-            ch == ord('_'))
+    return (
+        ord("0") <= ch <= ord("9")
+        or ord("a") <= ch <= ord("z")
+        or ord("A") <= ch <= ord("Z")
+        or ch == ord("_")
+    )
 
 
 def isspace(ch):
-    '''Returns True if character is treated as space'''
+    """Returns True if character is treated as space"""
 
     return not isalphanum(ch)
 
 
 class CommandBar(textmode.CmdLine):
-    '''command bar
+    """command bar
     Same as CmdLine, but backspace can exit the command mode
-    '''
+    """
 
     def __init__(self, colors, prompt=None, inputfilter=None):
-        '''initialize'''
+        """initialize"""
 
         x = 0
         y = textmode.VIDEO.h - 1
@@ -2025,11 +2113,12 @@ class CommandBar(textmode.CmdLine):
             if w < 1:
                 w = 1
 
-        self.textfield = CommandField(self, x, self.bounds.y, w, colors,
-                                      True, inputfilter)
+        self.textfield = CommandField(
+            self, x, self.bounds.y, w, colors, True, inputfilter
+        )
 
     def resize_event(self):
-        '''the terminal was resized'''
+        """the terminal was resized"""
 
         self.frame.w = self.bounds.w = self.rect.w = textmode.VIDEO.w
         self.frame.y = self.bounds.y = self.rect.y = textmode.VIDEO.h - 1
@@ -2044,19 +2133,18 @@ class CommandBar(textmode.CmdLine):
         self.textfield.w = w
 
 
-
 class CommandField(textmode.TextField):
-    '''command bar edit field
+    """command bar edit field
     Same as TextField, but backspace can exit the command mode
-    '''
+    """
 
     def runloop(self):
-        '''run the CommandField
+        """run the CommandField
         Same as TextField, but backspace can exit
-        '''
+        """
 
         # reset the text
-        self.text = ''
+        self.text = ""
         self.cursor = 0
         self.draw()
 
@@ -2065,7 +2153,7 @@ class CommandField(textmode.TextField):
         while True:
             key = getch()
             if key == KEY_ESC:
-                self.text = ''
+                self.text = ""
                 self.cursor = 0
                 self.lose_focus()
                 self.clear()
@@ -2089,8 +2177,7 @@ class CommandField(textmode.TextField):
 
             if key == KEY_BS:
                 if self.cursor > 0:
-                    self.text = (self.text[:self.cursor - 1] +
-                                 self.text[self.cursor:])
+                    self.text = self.text[: self.cursor - 1] + self.text[self.cursor :]
                     self.cursor -= 1
                     self.draw()
 
@@ -2102,8 +2189,7 @@ class CommandField(textmode.TextField):
 
             elif key == KEY_DEL:
                 if self.cursor < len(self.text):
-                    self.text = (self.text[:self.cursor] +
-                                 self.text[self.cursor + 1:])
+                    self.text = self.text[: self.cursor] + self.text[self.cursor + 1 :]
                     self.draw()
 
                 elif self.cursor == 0 and not self.text:
@@ -2145,22 +2231,20 @@ class CommandField(textmode.TextField):
                     ch = self.default_inputfilter(key)
 
                 if ch is not None:
-                    self.text = (self.text[:self.cursor] + ch +
-                                 self.text[self.cursor:])
+                    self.text = self.text[: self.cursor] + ch + self.text[self.cursor :]
                     self.cursor += 1
                     self.draw()
 
 
-
 class HelpWindow(textmode.TextWindow):
-    '''displays usage information'''
+    """displays usage information"""
 
     def __init__(self, parent):
-        '''initialize'''
+        """initialize"""
 
         self.parent = parent
 
-        text = '''Command keys
+        text = """Command keys
  :                    Enter command mode
  /        Ctrl-F      Find
  ?                    Find backwards(NotWork)
@@ -2170,7 +2254,6 @@ class HelpWindow(textmode.TextWindow):
  Q                    View single bytes
  W                    View 16-bit words
  E                    View 32-bit words
- F                    Intercept:Forward
  p                    Toggle printed values
  P                    Toggle endianness
  <                    Roll left
@@ -2200,7 +2283,7 @@ class HelpWindow(textmode.TextWindow):
  Ctrl-Q               Force quit
  
 Commands
- :0                   Go to top
+ :^                   Go to top
  :print   :values     Toggle printed values
  :big                 Set big endian mode
  :little              Set little endian mode
@@ -2208,7 +2291,7 @@ Commands
  :help    :?          Show this information
  :license             Show software license
  :about   :version    Show About box
- :q       :q!         Quit'''
+ :q       :q!         Quit"""
 
         colors = textmode.ColorSet(BLACK, WHITE)
         colors.title = textmode.video_color(RED, WHITE)
@@ -2221,11 +2304,21 @@ Commands
         x = textmode.center_x(w, self.parent.frame.w)
         y = textmode.center_y(h, textmode.VIDEO.h)
 
-        super().__init__(x, y, w, h, colors, title='Help', border=True,
-                         text=text.split('\n'), scrollbar=False, status=False)
+        super().__init__(
+            x,
+            y,
+            w,
+            h,
+            colors,
+            title="Help",
+            border=True,
+            text=text.split("\n"),
+            scrollbar=False,
+            status=False,
+        )
 
     def resize_event(self):
-        '''the terminal was resized'''
+        """the terminal was resized"""
 
         w = self.frame.w
         h = textmode.VIDEO.h - 6
@@ -2257,7 +2350,7 @@ Commands
                 self.top = 0
 
     def runloop(self):
-        '''run the Help window'''
+        """run the Help window"""
 
         # this is the same as for TextWindow, but the
         # hexview app uses some more navigation keys
@@ -2265,37 +2358,42 @@ Commands
         while True:
             key = getch()
 
-            if key == KEY_ESC or key == ' ' or key == KEY_RETURN:       # pylint: disable=consider-using-in
+            if (
+                key == KEY_ESC or key == " " or key == KEY_RETURN
+            ):  # pylint: disable=consider-using-in
                 self.lose_focus()
                 return textmode.RETURN_TO_PREVIOUS
 
-            if key == KEY_UP or key == 'k':                         # pylint: disable=consider-using-in
+            if key == KEY_UP or key == "k":  # pylint: disable=consider-using-in
                 self.move_up()
 
-            elif key == KEY_DOWN or key == 'j':                     # pylint: disable=consider-using-in
+            elif key == KEY_DOWN or key == "j":  # pylint: disable=consider-using-in
                 self.move_down()
 
-            elif key == KEY_PAGEUP or key == 'Ctrl-U':              # pylint: disable=consider-using-in
+            elif (
+                key == KEY_PAGEUP or key == "Ctrl-U"
+            ):  # pylint: disable=consider-using-in
                 self.pageup()
 
-            elif key == KEY_PAGEDOWN or key == 'Ctrl-D':            # pylint: disable=consider-using-in
+            elif (
+                key == KEY_PAGEDOWN or key == "Ctrl-D"
+            ):  # pylint: disable=consider-using-in
                 self.pagedown()
 
-            elif key == KEY_HOME or key == 'g':                     # pylint: disable=consider-using-in
+            elif key == KEY_HOME or key == "g":  # pylint: disable=consider-using-in
                 self.goto_top()
 
-            elif key == KEY_END or key == 'G':                      # pylint: disable=consider-using-in
+            elif key == KEY_END or key == "G":  # pylint: disable=consider-using-in
                 self.goto_bottom()
 
 
-
 class LicenseBox(textmode.Alert):
-    '''shows software license'''
+    """shows software license"""
 
     def __init__(self):
-        '''initialize'''
+        """initialize"""
 
-        text = '''Copyright (c) 2016 Walter de Jong <walter@heiho.net>
+        text = """Copyright (c) 2016 Walter de Jong <walter@heiho.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -2313,27 +2411,31 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.'''
+THE SOFTWARE."""
 
         colors = textmode.ColorSet(BLACK, WHITE)
         colors.title = textmode.video_color(RED, WHITE)
         colors.button = textmode.video_color(WHITE, BLUE, bold=True)
         colors.buttonhotkey = textmode.video_color(YELLOW, BLUE, bold=True)
         colors.activebutton = textmode.video_color(WHITE, GREEN, bold=True)
-        colors.activebuttonhotkey = textmode.video_color(YELLOW, GREEN,
-                                                         bold=True)
-        super().__init__(colors, 'License', text, ['<D>ecline', '<A>ccept'],
-                         default=1, center_text=False)
-
+        colors.activebuttonhotkey = textmode.video_color(YELLOW, GREEN, bold=True)
+        super().__init__(
+            colors,
+            "License",
+            text,
+            ["<D>ecline", "<A>ccept"],
+            default=1,
+            center_text=False,
+        )
 
 
 class AboutBox(textmode.Alert):
-    '''about box'''
+    """about box"""
 
     def __init__(self):
-        '''initialize'''
+        """initialize"""
 
-        text = '''HexView
+        text = """HexView
 --------{}
 version {}
 
@@ -2341,66 +2443,69 @@ Copyright 2016 by
 Walter de Jong <walter@heiho.net>
 
 This is free software, available
-under terms of the MIT license'''.format('-' * len(VERSION), VERSION)
+under terms of the MIT license""".format(
+            "-" * len(VERSION), VERSION
+        )
 
         colors = textmode.ColorSet(BLACK, WHITE)
         colors.title = textmode.video_color(RED, WHITE)
         colors.button = textmode.video_color(WHITE, BLUE, bold=True)
         colors.buttonhotkey = textmode.video_color(YELLOW, BLUE, bold=True)
         colors.activebutton = textmode.video_color(WHITE, GREEN, bold=True)
-        colors.activebuttonhotkey = textmode.video_color(YELLOW, GREEN,
-                                                         bold=True)
-        super().__init__(colors, 'About', text)
+        colors.activebuttonhotkey = textmode.video_color(YELLOW, GREEN, bold=True)
+        super().__init__(colors, "About", text)
 
     def draw(self):
-        '''draw the About box'''
+        """draw the About box"""
 
         super().draw()
 
         # draw pretty horizontal line in text
         w = len(VERSION) + 8
         x = self.bounds.x + textmode.center_x(w, self.bounds.w)
-        textmode.VIDEO.hline(x, self.frame.y + 3, w, curses.ACS_HLINE,
-                             self.colors.text)
+        textmode.VIDEO.hline(x, self.frame.y + 3, w, curses.ACS_HLINE, self.colors.text)
 
 
-
-def hexview_main(filename,address):
-    '''main program'''
+def hexview_main(filename, address):
+    """main program"""
 
     colors = textmode.ColorSet(BLACK, CYAN)
     colors.cursor = textmode.video_color(WHITE, BLACK, bold=True)
     colors.status = colors.cursor
     colors.invisibles = textmode.video_color(BLUE, CYAN, bold=True)
 
-    view = HexWindow(0, 0, 80, textmode.VIDEO.h - 1, colors,None,True,address)
+    view = HexWindow(0, 0, 80, textmode.VIDEO.h - 1, colors, None, True, address)
     try:
         view.load(filename)
     except OSError as err:
         textmode.terminate()
-        print('{}: {}'.format(filename, err.strerror))
+        print("{}: {}".format(filename, err.strerror))
         sys.exit(-1)
 
     view.show()
 
-    textmode.VIDEO.puts(0, textmode.VIDEO.h - 1,
-                        'Enter :help for usage information',
-                        textmode.video_color(WHITE, BLACK))
+    textmode.VIDEO.puts(
+        0,
+        textmode.VIDEO.h - 1,
+        "Enter :help for usage information",
+        textmode.video_color(WHITE, BLACK),
+    )
     view.runloop()
 
 
 def short_usage():
-    '''print short usage information and exit'''
+    """print short usage information and exit"""
 
-    print('usage: {} [options] <filename>'.format(os.path.basename(sys.argv[0])))
+    print("usage: {} [options] <filename>".format(os.path.basename(sys.argv[0])))
     sys.exit(1)
 
 
 def usage():
-    '''print usage information and exit'''
+    """print usage information and exit"""
 
-    print('usage: {} [options] <filename>'.format(os.path.basename(sys.argv[0])))
-    print('''options:
+    print("usage: {} [options] <filename>".format(os.path.basename(sys.argv[0])))
+    print(
+        """options:
   -h, --help           Show this information
       --no-color       Disable colors
       --ascii-lines    Use plain ASCII for line drawing
@@ -2408,51 +2513,63 @@ def usage():
       --no-hlines      Disable horizontal lines
       --no-vlines      Disable vertical lines
   -v, --version        Display version and exit
-''')
+"""
+    )
     sys.exit(1)
 
 
 def get_options():
-    '''parse command line options'''
+    """parse command line options"""
 
     global OPT_LINEMODE
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hv',
-                                   ['help', 'no-color', 'no-lines',
-                                    'ascii-lines', 'no-hlines', 'no-vlines',
-                                    'version'])
+        opts, args = getopt.getopt(
+            sys.argv[1:],
+            "hpv",
+            [
+                "help",
+                "no-color",
+                "no-lines",
+                "ascii-lines",
+                "no-hlines",
+                "no-vlines",
+                "version",
+                "pid",
+                "memoryview",
+            ],
+        )
     except getopt.GetoptError:
         short_usage()
 
     for opt, _ in opts:
-        if opt in ('-h', '--help'):
+        if opt in ("-h", "--help"):
             usage()
 
-        elif opt == '--no-color':
+        elif opt == "--no-color":
             textmode.WANT_COLORS = False
 
-        elif opt == '--no-lines':
+        elif opt == "--no-lines":
             OPT_LINEMODE = 0
 
-        elif opt == '--ascii-lines':
+        elif opt == "--ascii-lines":
             OPT_LINEMODE |= textmode.LM_ASCII
 
-        elif opt == '--no-hlines':
+        elif opt == "--no-hlines":
             OPT_LINEMODE &= ~textmode.LM_HLINE
 
-        elif opt == '--no-vlines':
+        elif opt == "--no-vlines":
             OPT_LINEMODE &= ~textmode.LM_VLINE
 
-        elif opt in ('-v', '--version'):
-            print('hexview version {}'.format(VERSION))
-            print('Copyright 2016 by Walter de Jong <walter@heiho.net>')
+        elif opt in ("-v", "--version"):
+            print("hexview version {}".format(VERSION))
+            print("Copyright 2016 by Walter de Jong <walter@heiho.net>")
             sys.exit(1)
     name = "self"
     return name
 
 
-def memory_view_mode(api,address):
+def memory_view_mode(api, address):
     global API
     API = api
     filename_ = get_options()
@@ -2461,8 +2578,9 @@ def memory_view_mode(api,address):
     textmode.linemode(OPT_LINEMODE)
 
     try:
-        hexview_main("self",address)
+        hexview_main("self", address)
     finally:
         textmode.terminate()
+
 
 # EOB

@@ -4,6 +4,10 @@ targetOS = "ios"
 mode =  "attach"
 binary_path = ""
 
+[memoryview]
+# windows only
+multiple_window = false
+
 [ipconfig]
 frida_server_ip =  ""
 

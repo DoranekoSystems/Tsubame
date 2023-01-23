@@ -6,6 +6,10 @@ import sys
 import toml
 from define import OS, MODE
 import medit
+import os
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/memoryview")
+from hexview import memory_view_mode
 
 with open("config.toml") as f:
     config = toml.loads(f.read())
@@ -33,7 +37,7 @@ def get_device():
     return device
 
 
-def main(package, pid=None):
+def main(package, pid=None, run_mode="medit", memoryview_address=None):
     targetOS = config["general"]["targetOS"]
     mode = config["general"]["mode"]
     frida_server_ip = config["ipconfig"]["frida_server_ip"]
@@ -99,32 +103,42 @@ def main(package, pid=None):
         info = api.GetInfo()
         process_id = info["pid"]
 
-    medit.run_loop(config, api)
+    if run_mode == "medit":
+        medit.run_loop(process_id, config, api)
+    else:
+        memory_view_mode(api, memoryview_address)
 
 
 if __name__ == "__main__":
     args = sys.argv
+
     target = config["general"]["target"]
     targetOS = config["general"]["targetOS"]
     binary_path = config["general"]["binary_path"]
+    run_mode = "medit"
+    memoryview_address = None
+    if "--memoryview" in args:
+        memoryview_address = int(args[args.index("--memoryview") + 1], 16)
+        run_mode = "memoryview"
+
     if targetOS in [OS.ANDROID.value, OS.IOS.value]:
         if target == "":
             if args[1] == "-p" or args[1] == "--pid":
                 pid = int(args[2])
-                main(None, pid)
+                main(None, pid, run_mode, memoryview_address)
             else:
-                main(args[1])
+                main(args[1], None, run_mode, memoryview_address)
         else:
-            main(target)
+            main(target, None, run_mode, memoryview_address)
     else:
         if target == "":
             if binary_path == "":
                 if args[1] == "-p" or args[1] == "--pid":
                     pid = int(args[2])
-                    main(None, pid)
+                    main(None, pid, run_mode, memoryview_address)
                 else:
-                    main(args[1])
+                    main(args[1], None, run_mode, memoryview_address)
             else:
-                main("")
+                main("", None, run_mode, memoryview_address)
         else:
-            main(target)
+            main(target, None, run_mode, memoryview_address)
