@@ -41,8 +41,8 @@ Install python library.
 # windows
 pip install -r requirements_windows.txt
 
-# other
-pip instlal -r requirements.txt
+# mac
+pip install -r requirements_mac.txt
 ```
 
 

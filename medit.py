@@ -6,6 +6,7 @@ import re
 import struct
 from threading import Thread
 import subprocess
+import platform
 from tqdm import tqdm
 import hexdump
 import lz4.block
@@ -322,12 +323,27 @@ def run_loop(pid, config, api):
         elif command == "view":
             address = int(answers["view_input_value"], 16)
             if MULTIPLE_WINDOW:
+
                 def run():
-                    subprocess.call(f"python main.py -p {pid} --memoryview {hex(address)}", creationflags=subprocess.CREATE_NEW_CONSOLE)
+                    hostos = platform.system()
+                    if hostos == "Darwin":
+                        from applescript import tell
+
+                        cwd = os.getcwd()
+                        pycmd = f"python3 main.py -p {pid} --memoryview {hex(address)}"
+                        tell.app("Terminal", 'do script "' + f"cd {cwd};{pycmd}" + '"')
+                    elif hostos == "Windows":
+                        subprocess.call(
+                            f"python main.py -p {pid} --memoryview {hex(address)}",
+                            creationflags=subprocess.CREATE_NEW_CONSOLE,
+                        )
+                    else:
+                        print("Not Support")
+
                 t1 = Thread(target=run)
                 t1.start()
             else:
-                memory_view_mode(api,address)
+                memory_view_mode(api, address)
 
         elif command == "exit":
             print(Fore.BLACK + "exit.")
