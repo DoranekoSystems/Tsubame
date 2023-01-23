@@ -327,7 +327,7 @@ def run_loop(pid, config, api):
                 t1 = Thread(target=run)
                 t1.start()
             else:
-                memory_view_mode(api,addresss)
+                memory_view_mode(api,address)
 
         elif command == "exit":
             print(Fore.BLACK + "exit.")
