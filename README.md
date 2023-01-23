@@ -29,7 +29,9 @@ FILTERD:1/3834!!
 
 ## Realtime Memory Viewer
 
-<img width="605" alt="img" src="https://user-images.githubusercontent.com/96031346/213922729-0e0c9fff-f587-4806-ac26-0b1daac3e40f.png">
+Multiple windows can be opened.
+
+<img width="800" alt="img" src="https://user-images.githubusercontent.com/96031346/214028706-c327a2ea-e02e-4727-9d9b-a93a09b7d1e5.png">
 
 # Usage
 
