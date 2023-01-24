@@ -395,6 +395,7 @@ def run_loop(pid, config, api):
     global ADDRESS_LIST
     global CUSTOM_READ_MEMORY
     global TARGET_OS
+    global MULTIPLE_WINDOW
     global API
     TARGET_OS = config["general"]["targetOS"]
     CUSTOM_READ_MEMORY = config["extended_function"]["custom_read_memory"]
