@@ -13,4 +13,6 @@ frida_server_ip =  ""
 
 [extended_function]
 ignore_mapped_file = false
+# android and iOS only
+# if true,Memory search speed is greatly improved
 custom_read_memory = false
