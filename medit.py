@@ -28,7 +28,16 @@ questions = [
         "type": "checkbox",
         "name": "find_data_type",
         "message": "Please Input a data type.",
-        "choices": ["word", "dword", "qword", "utf8", "utf16", "regex"],
+        "choices": [
+            "word",
+            "dword",
+            "qword",
+            "float",
+            "double",
+            "utf8",
+            "utf16",
+            "regex",
+        ],
         "default": "dword",
         "when": lambda answers: answers["command"] == "find",
     },
@@ -43,7 +52,16 @@ questions = [
         "type": "checkbox",
         "name": "filter_data_type",
         "message": "Please Input a data type.",
-        "choices": ["word", "dword", "qword", "utf8", "utf16", "regex"],
+        "choices": [
+            "word",
+            "dword",
+            "qword",
+            "float",
+            "double",
+            "utf8",
+            "utf16",
+            "regex",
+        ],
         "default": "dword",
         "when": lambda answers: answers["command"] == "filter",
     },
@@ -80,7 +98,16 @@ questions = [
         "type": "rawlist",
         "name": "list_data_type",
         "message": "Please Input a data type.",
-        "choices": ["word", "dword", "qword", "utf8", "utf16", "regex"],
+        "choices": [
+            "word",
+            "dword",
+            "qword",
+            "float",
+            "double",
+            "utf8",
+            "utf16",
+            "regex",
+        ],
         "default": "dword",
         "when": lambda answers: answers["command"] == "list",
     },
@@ -117,7 +144,7 @@ CUSTOM_READ_MEMORY = False
 TARGET_OS = None
 MULTIPLE_WINDOW = False
 API = None
-RPM_MAX_SIZE = 524288
+RPM_MAX_SIZE = 524288 * 128
 
 
 def decompress_lz4(data):
@@ -140,6 +167,11 @@ def decompress_lz4(data):
             decompress_bytes += last_uncompressed
         ret = decompress_bytes
         return ret
+    elif CUSTOM_READ_MEMORY and TARGET_OS == OS.ANDROID.value:
+        uncompressed_size = struct.unpack("<I", data[-4:])[0]
+        decompress_bytes = lz4.block.decompress(data[:-4], uncompressed_size)
+        ret = decompress_bytes
+        return ret
     else:
         return data
 
@@ -154,6 +186,211 @@ def readprocessmemory(address, size):
     return ret
 
 
+class structpack:
+    def __init__(self, value, _type):
+        self.value = value
+        self.type = _type
+
+    def pack(self):
+        if self.type == "word":
+            bytecode = struct.pack("<H", int(self.value))
+        elif self.type == "dword":
+            bytecode = struct.pack("<I", int(self.value))
+        elif self.type == "qword":
+            bytecode = struct.pack("<Q", int(self.value))
+        elif self.type == "float":
+            bytecode = struct.pack("<f", float(self.value))
+        elif self.type == "double":
+            bytecode = struct.pack("<d", float(self.value))
+        elif self.type == "utf8":
+            bytecode = self.value.encode()
+        return bytecode
+
+    def get_size(self):
+        if self.type == "word":
+            size = 2
+        elif self.type == "dword":
+            size = 4
+        elif self.type == "qword":
+            size = 8
+        elif self.type == "float":
+            size = 4
+        elif self.type == "double":
+            size = 8
+        return size
+
+
+def exec_command(answers, command, pid, api):
+    global ADDRESS_LIST
+    global CUSTOM_READ_MEMORY
+    global TARGET_OS
+    global API
+    if command == "find":
+        ADDRESS_LIST = []
+        input_value = answers["find_input_value"]
+        regions = api.VirtualQueryExFull()
+        regions_size = sum([region[1] for region in regions])
+        readed_size = 0
+        with tqdm(total=regions_size, desc="progress") as bar:
+            for i, region in enumerate(regions):
+                start = region[0]
+                size = region[1]
+                tmp = start
+                remain_size = size
+                ret = b""
+                data_type = answers["find_data_type"]
+                if CUSTOM_READ_MEMORY or len(data_type) > 1 or "regex" in data_type:
+                    while remain_size > 0:
+                        read_size = min(remain_size, RPM_MAX_SIZE)
+                        result = readprocessmemory(tmp, read_size)
+                        if result != False:
+                            ret = result
+                            for _type in data_type:
+                                if _type != "regex":
+                                    sp = structpack(input_value, _type)
+                                    bytecode = sp.pack()
+                                    bytecode = re.escape(bytecode)
+                                elif _type == "regex":
+                                    bytecode = input_value.encode()
+                                for match in re.finditer(bytecode, ret):
+                                    ADDRESS_LIST.append(tmp + match.start())
+                        tmp += read_size
+                        readed_size += read_size
+                        remain_size -= read_size
+                        bar.update(read_size)
+                else:
+                    _type = data_type[0]
+                    sp = structpack(input_value, _type)
+                    bytecode = sp.pack()
+                    addresses = api.MemoryScan(start, size, bytecode.hex())
+                    if addresses != None:
+                        for address in addresses:
+                            ad = int(address["address"], 16)
+                            sz = address["size"]
+                            ADDRESS_LIST.append(ad)
+                    bar.update(size)
+        print(f"HIT COUNT:{len(ADDRESS_LIST)}!!\n")
+
+    elif command == "filter":
+        data_type = answers["filter_data_type"]
+        input_value = answers["filter_input_value"]
+        old_size = len(ADDRESS_LIST)
+        FILTER_LIST = []
+        with tqdm(total=old_size, desc="progress") as bar:
+            for address in ADDRESS_LIST:
+                for _type in data_type:
+                    read_size = 0
+                    if _type != "utf8":
+                        sp = structpack(input_value, _type)
+                        bytecode = sp.pack()
+                        bytecode = re.escape(bytecode)
+                        read_size = sp.get_size()
+                    elif _type == "utf8":
+                        bytecode = input_value.encode()
+                        bytecode = re.escape(bytecode)
+                        read_size = len(bytecode)
+                    ret = readprocessmemory(address, read_size)
+                    if ret != False:
+                        for match in re.finditer(bytecode, ret):
+                            FILTER_LIST.append(address)
+                bar.update(1)
+        ADDRESS_LIST = FILTER_LIST
+        print(f"FILTERD:{len(ADDRESS_LIST)}/{old_size}!!\n")
+
+    elif command == "patch":
+        _type = answers["patch_data_type"]
+        input_value = answers["patch_input_value"]
+        for address in ADDRESS_LIST:
+            sp = structpack(input_value, _type)
+            bytecode = sp.pack()
+            api.WriteProcessMemory(address, list(bytecode))
+
+    elif command == "dump":
+        dump_message = answers["dump_input_value"]
+        start = int(dump_message.split(" ")[0], 16)
+        size = int(dump_message.split(" ")[1])
+        ret = readprocessmemory(start, size)
+        print(hexdump.hexdump(ret))
+
+    elif command == "list":
+        _type = answers["list_data_type"]
+        for i, address in enumerate(ADDRESS_LIST):
+            if _type == "word":
+                read_size = 2
+            elif _type == "dword":
+                read_size = 4
+            elif _type == "qword":
+                read_size = 8
+            elif _type == "float":
+                read_size = 4
+            elif _type == "double":
+                read_size = 8
+            elif _type == "utf8":
+                read_size = 256
+            elif _type == "regex":
+                read_size = 256
+            ret = readprocessmemory(address, read_size)
+            if ret != False:
+                value = ""
+                if _type == "word":
+                    value = struct.unpack("<H", ret)[0]
+                elif _type == "dword":
+                    value = struct.unpack("<I", ret)[0]
+                elif _type == "qword":
+                    value = struct.unpack("<Q", ret)[0]
+                elif _type == "float":
+                    value = struct.unpack("<f", ret)[0]
+                elif _type == "double":
+                    value = struct.unpack("<d", ret)[0]
+                elif _type == "utf8":
+                    value = ""
+                    for j in range(256):
+                        try:
+                            value += chr(ret[j])
+                        except Exception as e:
+                            break
+                elif _type == "regex":
+                    input_value = answers["list_regex_input_value"]
+                    match = re.match(input_value.encode(), ret)
+                    try:
+                        value = match.group(0)
+                    except Exception as e:
+                        pass
+
+                print(Fore.GREEN + f"{i+1}:{hex(address)}")
+                print(Fore.RESET + str(value))
+
+    elif command == "view":
+        address = int(answers["view_input_value"], 16)
+        if MULTIPLE_WINDOW:
+
+            def run():
+                hostos = platform.system()
+                if hostos == "Darwin":
+                    from applescript import tell
+
+                    cwd = os.getcwd()
+                    pycmd = f"python3 main.py -p {pid} --memoryview {hex(address)}"
+                    tell.app("Terminal", 'do script "' + f"cd {cwd};{pycmd}" + '"')
+                elif hostos == "Windows":
+                    subprocess.call(
+                        f"python main.py -p {pid} --memoryview {hex(address)}",
+                        creationflags=subprocess.CREATE_NEW_CONSOLE,
+                    )
+                else:
+                    print("Not Support")
+
+            t1 = Thread(target=run)
+            t1.start()
+        else:
+            memory_view_mode(api, address)
+
+    elif command == "exit":
+        print(Fore.BLACK + "exit.")
+        sys.exit(0)
+    print("--------------------------------------------------------")
+
+
 def run_loop(pid, config, api):
     global ADDRESS_LIST
     global CUSTOM_READ_MEMORY
@@ -164,188 +401,9 @@ def run_loop(pid, config, api):
     MULTIPLE_WINDOW = config["memoryview"]["multiple_window"]
     API = api
     while True:
-        answers = prompt(questions, style=custom_style)
-        command = answers["command"]
-        if command == "find":
-            ADDRESS_LIST = []
-            input_value = answers["find_input_value"]
-            regions = api.VirtualQueryExFull()
-            regions_size = sum([region[1] for region in regions])
-            readed_size = 0
-            with tqdm(total=regions_size, desc="progress") as bar:
-                for i, region in enumerate(regions):
-                    start = region[0]
-                    size = region[1]
-                    tmp = start
-                    remain_size = size
-                    ret = b""
-                    data_type = answers["find_data_type"]
-                    if len(data_type) > 1 or "regex" in data_type:
-                        while remain_size > 0:
-                            read_size = min(remain_size, RPM_MAX_SIZE)
-                            result = readprocessmemory(tmp, read_size)
-                            if result != False:
-                                ret = result
-                                for _type in data_type:
-                                    if _type == "word":
-                                        bytecode = struct.pack("<H", int(input_value))
-                                        bytecode = re.escape(bytecode)
-                                    elif _type == "dword":
-                                        bytecode = struct.pack("<I", int(input_value))
-                                        bytecode = re.escape(bytecode)
-                                    elif _type == "qword":
-                                        bytecode = struct.pack("<Q", int(input_value))
-                                        bytecode = re.escape(bytecode)
-                                    elif _type == "utf8":
-                                        bytecode = input_value.encode()
-                                        bytecode = re.escape(bytecode)
-                                    elif _type == "regex":
-                                        bytecode = input_value.encode()
-                                    for match in re.finditer(bytecode, ret):
-                                        ADDRESS_LIST.append(tmp + match.start())
-                            tmp += read_size
-                            readed_size += read_size
-                            remain_size -= read_size
-                            bar.update(read_size)
-                    else:
-                        _type = data_type[0]
-                        if _type == "word":
-                            bytecode = struct.pack("<H", int(input_value))
-                        elif _type == "dword":
-                            bytecode = struct.pack("<I", int(input_value))
-                        elif _type == "qword":
-                            bytecode = struct.pack("<Q", int(input_value))
-                        elif _type == "utf8":
-                            bytecode = input_value.encode()
-                        addresses = api.MemoryScan(start, size, bytecode.hex())
-                        if addresses != None:
-                            for address in addresses:
-                                ad = int(address["address"], 16)
-                                sz = address["size"]
-                                ADDRESS_LIST.append(ad)
-                        bar.update(size)
-            print(f"HIT COUNT:{len(ADDRESS_LIST)}!!\n")
-
-        elif command == "filter":
-            data_type = answers["filter_data_type"]
-            input_value = answers["filter_input_value"]
-            old_size = len(ADDRESS_LIST)
-            FILTER_LIST = []
-            with tqdm(total=old_size, desc="progress") as bar:
-                for address in ADDRESS_LIST:
-                    for _type in data_type:
-                        read_size = 0
-                        if _type == "word":
-                            bytecode = struct.pack("<H", int(input_value))
-                            bytecode = re.escape(bytecode)
-                            read_size = 2
-                        elif _type == "dword":
-                            bytecode = struct.pack("<I", int(input_value))
-                            bytecode = re.escape(bytecode)
-                            read_size = 4
-                        elif _type == "qword":
-                            bytecode = struct.pack("<Q", int(input_value))
-                            bytecode = re.escape(bytecode)
-                            read_size = 8
-                        elif _type == "utf8":
-                            bytecode = input_value.encode()
-                            bytecode = re.escape(bytecode)
-                            read_size = len(bytecode)
-                        ret = readprocessmemory(address, read_size)
-                        if ret != False:
-                            for match in re.finditer(bytecode, ret):
-                                FILTER_LIST.append(address)
-                    bar.update(1)
-            ADDRESS_LIST = FILTER_LIST
-            print(f"FILTERD:{len(ADDRESS_LIST)}/{old_size}!!\n")
-
-        elif command == "patch":
-            _type = answers["patch_data_type"]
-            input_value = answers["patch_input_value"]
-            for address in ADDRESS_LIST:
-                if _type == "word":
-                    bytecode = struct.pack("<H", int(input_value))
-                elif _type == "dword":
-                    bytecode = struct.pack("<I", int(input_value))
-                elif _type == "qword":
-                    bytecode = struct.pack("<Q", int(input_value))
-                elif _type == "utf8":
-                    bytecode = input_value.encode()
-                api.WriteProcessMemory(address, list(bytecode))
-
-        elif command == "dump":
-            dump_message = answers["dump_input_value"]
-            start = int(dump_message.split(" ")[0], 16)
-            size = int(dump_message.split(" ")[1])
-            ret = readprocessmemory(start, size)
-            print(hexdump.hexdump(ret))
-
-        elif command == "list":
-            _type = answers["list_data_type"]
-            for i, address in enumerate(ADDRESS_LIST):
-                if _type == "word":
-                    read_size = 2
-                elif _type == "dword":
-                    read_size = 4
-                elif _type == "qword":
-                    read_size = 8
-                elif _type == "utf8":
-                    read_size = 256
-                elif _type == "regex":
-                    read_size = 256
-                ret = readprocessmemory(address, read_size)
-                if ret != False:
-                    value = ""
-                    if _type == "word":
-                        value = struct.unpack("<H", ret)[0]
-                    elif _type == "dword":
-                        value = struct.unpack("<I", ret)[0]
-                    elif _type == "qword":
-                        value = struct.unpack("<Q", ret)[0]
-                    elif _type == "utf8":
-                        value = ""
-                        for j in range(256):
-                            try:
-                                value += chr(ret[j])
-                            except Exception as e:
-                                break
-                    elif _type == "regex":
-                        input_value = answers["list_regex_input_value"]
-                        match = re.match(input_value.encode(), ret)
-                        try:
-                            value = match.group(0)
-                        except Exception as e:
-                            pass
-
-                    print(Fore.GREEN + f"{i+1}:{hex(address)}")
-                    print(Fore.RESET + str(value))
-
-        elif command == "view":
-            address = int(answers["view_input_value"], 16)
-            if MULTIPLE_WINDOW:
-
-                def run():
-                    hostos = platform.system()
-                    if hostos == "Darwin":
-                        from applescript import tell
-
-                        cwd = os.getcwd()
-                        pycmd = f"python3 main.py -p {pid} --memoryview {hex(address)}"
-                        tell.app("Terminal", 'do script "' + f"cd {cwd};{pycmd}" + '"')
-                    elif hostos == "Windows":
-                        subprocess.call(
-                            f"python main.py -p {pid} --memoryview {hex(address)}",
-                            creationflags=subprocess.CREATE_NEW_CONSOLE,
-                        )
-                    else:
-                        print("Not Support")
-
-                t1 = Thread(target=run)
-                t1.start()
-            else:
-                memory_view_mode(api, address)
-
-        elif command == "exit":
-            print(Fore.BLACK + "exit.")
-            sys.exit(0)
-        print("--------------------------------------------------------")
+        try:
+            answers = prompt(questions, style=custom_style)
+            command = answers["command"]
+            exec_command(answers, command, pid, api)
+        except Exception as e:
+            print(e)

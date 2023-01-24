@@ -5,6 +5,8 @@ const COMPRESSION_LZMA = 0x306;
 const COMPRESSION_LZFSE = 0x801;
 const COMPRESSION_BROTLI = 0xb02;
 
+const PS = Process.pointerSize;
+
 var mach_task_self;
 var mach_vm_read_overwrite;
 var compression_encode_buffer;
@@ -21,12 +23,12 @@ var g_Task;
 var g_Mutex = true;
 
 //Up to 10 threads can be handled simultaneously
-var g_maxThread = 10;
+var g_maxThread = 2;
 g_Buffer = Memory.alloc(1048576 * g_maxThread);
 g_dstBuffer = Memory.alloc(1048576 * g_maxThread);
 
 function ReadProcessMemory_Init() {
-  console.log('RPM_CUSTOM_INIT');
+  //console.log('RPM_CUSTOM_INIT');
   //iOS
   if (target_os == 'ios') {
     var mach_task_selfPtr = Module.findExportByName(null, 'mach_task_self');
@@ -144,7 +146,7 @@ rpc.exports = {
     target_os = config['general']['targetOS'];
     if (custom_read_memory && ['android', 'ios'].indexOf(target_os != -1)) {
       ReadProcessMemory_Init();
-      console.log('ReadProcessMemory_Custom Enabled!!');
+      //console.log('ReadProcessMemory_Custom Enabled!!');
     }
   },
   getinfo: function () {
@@ -195,19 +197,19 @@ rpc.exports = {
             if (regionList[i].file.path) {
               skip_flag = true;
             }
-          } catch (e) { }
+          } catch (e) {}
         } else if (target_os == 'android' && ignore_mapped_file) {
           try {
             if (regionList[i].file.path) {
               skip_flag = true;
             }
-          } catch (e) { }
+          } catch (e) {}
         }
         if (!skip_flag) {
           regionInfos.push([baseaddress, size]);
         } else {
         }
-      } catch (e) { }
+      } catch (e) {}
     }
     return regionInfos;
   },
@@ -217,6 +219,6 @@ rpc.exports = {
     } catch (e) {
       return null;
     }
-    return scanSync
-  }
+    return scanSync;
+  },
 };
