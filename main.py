@@ -97,16 +97,16 @@ def main(package, pid=None, run_mode="medit", memoryview_address=None):
     script = session.create_script(jscode)
     script.on("message", on_message)
     script.load()
-    api = script.exports
-    api.SetConfig(config)
+    frida_api = script.exports
+    frida_api.SetConfig(config)
     if mode == MODE.ATTACH.value:
-        info = api.GetInfo()
+        info = frida_api.GetInfo()
         process_id = info["pid"]
 
     if run_mode == "medit":
-        medit.run_loop(process_id, config, api)
+        medit.run_loop(process_id, config, frida_api)
     else:
-        memory_view_mode(api, memoryview_address)
+        memory_view_mode(frida_api, memoryview_address)
 
 
 if __name__ == "__main__":
