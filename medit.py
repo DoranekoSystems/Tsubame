@@ -37,6 +37,7 @@ questions = [
             "qword",
             "float",
             "double",
+            "aob",
             "utf8",
             "utf16",
             "regex",

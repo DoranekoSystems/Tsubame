@@ -19,6 +19,8 @@ class StructPack:
             bytecode = pack("<d", float(self.value))
         elif self.type == "utf8":
             bytecode = self.value.encode()
+        elif self.type == "aob":
+            bytecode = bytes.fromhex(self.value.replace(" ",""))
         return bytecode
 
     def size(self):
@@ -34,6 +36,8 @@ class StructPack:
             size = 8
         elif self.type == "utf8":
             size = len(self.value)
+        elif self.type == "aob":
+            size = len(self.value.replace(" ",""))/2
         return size
 
 
@@ -55,4 +59,6 @@ class StructUnpack:
             value = unpack("<d", self.bytecode)[0]
         elif self.type == "utf8":
             value = self.bytecode.decode("utf-8")
+        elif self.type == "aob":
+            value = self.bytecode.hex()
         return value
