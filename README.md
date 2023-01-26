@@ -1,4 +1,7 @@
-# frida-medit
+# tsubame
+
+<img width="400" alt="img" src="https://user-images.githubusercontent.com/96031346/214802113-4b7d62b6-2ac5-4e4b-a922-f45c529b81ab.png">
+
 cross-platform cui-based process memory analyzer.
 
 ## Memory Scanner
