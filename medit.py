@@ -231,6 +231,8 @@ def run_loop(pid, config, frida_api):
             answers = prompt(questions, style=custom_style)
             command = answers["command"]
             exec_command(answers, command, pid, medit_api, scan)
+        except KeyboardInterrupt as e:
+            print("stopping")
         except Exception as e:
             import traceback
 
