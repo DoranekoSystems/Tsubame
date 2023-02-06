@@ -12,6 +12,7 @@ import hexdump
 import lz4.block
 from define import OS, MODE
 from colorama import Fore, Back, Style
+import argparse
 import api
 import scanner
 import util
@@ -24,7 +25,7 @@ questions = [
         "type": "rawlist",
         "name": "command",
         "message": "Please Input a command.",
-        "choices": ["find", "filter", "patch", "dump", "list", "view", "exit"],
+        "choices": ["find", "filter", "patch", "conf", "dump", "list", "view", "exit"],
         "default": None,
     },
     {
@@ -68,8 +69,15 @@ questions = [
     },
     {
         "type": "input",
+        "name": "conf_input_value",
+        "message": "Please Input a value.",
+        "default": "",
+        "when": lambda answers: answers["command"] == "conf",
+    },
+    {
+        "type": "input",
         "name": "dump_input_value",
-        "message": "Please Input a value(start - size).",
+        "message": "Please Input a value.",
         "default": "",
         "when": lambda answers: answers["command"] == "dump",
     },
@@ -117,12 +125,52 @@ def exec_command(answers, command, pid, medit_api, scan):
             bytecode = sp.pack()
             medit_api.writeprocessmemory(address_info["address"], bytecode)
 
+    elif command == "conf":
+        value = answers["conf_input_value"]
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-s", "--start")
+        parser.add_argument("-e", "--end")
+        parser.add_argument("-p", "--protect")
+        args = parser.parse_args(value.split(" "))
+        if args.protect != None:
+            scan.protect = args.protect
+
     elif command == "dump":
-        dump_message = answers["dump_input_value"]
-        start = int(dump_message.split(" ")[0], 16)
-        size = int(dump_message.split(" ")[1])
-        ret = medit_api.readprocessmemory(start, size)
-        print(hexdump.hexdump(ret))
+        value = answers["dump_input_value"]
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-s", "--start")
+        parser.add_argument("-e", "--end")
+        parser.add_argument("-m", "--module")
+        parser.add_argument("-f", "--file")
+        args = parser.parse_args(value.split(" "))
+        if args.module == None:
+            start = int(args.start, 16)
+            end = int(args.end, 16)
+            size = end - start + 1
+            ret = medit_api.readprocessmemory(start, size)
+            if ret != False:
+                if args.file == None:
+                    print(hexdump.hexdump(ret))
+                else:
+                    with open(args.file, mode="wb") as f:
+                        f.write(ret)
+        else:
+            name = args.module
+            ret = medit_api.getmodule(name)
+            if ret != False:
+                start = ret[1]
+                size = ret[2]
+                filename = name
+                if args.file != None:
+                    filename = args.file
+                ret = medit_api.readprocessmemory(start, size)
+                if ret != False:
+                    with open(filename, mode="wb") as f:
+                        f.write(ret)
+                else:
+                    print("read memory error")
+            else:
+                print("module not found")
 
     elif command == "list":
         for i, address_info in enumerate(scan.address_list):

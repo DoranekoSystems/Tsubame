@@ -26,13 +26,14 @@ class Scanner:
         self.rpm_max_size = 524288 * 128
         self.scan_type = ""
         self.scan_value = None
+        self.protect = "r--"
 
     def find(self, value, _type):
         self.scan_value = value
         self.scan_type = _type
         self.addresses = []
         self.address_list = []
-        regions = self.frida_api.VirtualQueryExFull()
+        regions = self.medit_api.virtualqueryexfull(self.protect)
         regions_size = sum([region[1] for region in regions])
         readed_size = 0
         with tqdm(total=regions_size, desc="progress") as bar:
@@ -82,7 +83,7 @@ class Scanner:
         # todo:
         _type = self.scan_type
         filtered_list = []
-        regions = self.medit_api.virtualqueryexfull()
+        regions = self.medit_api.virtualqueryexfull(self.protect)
         regions_size = sum([region[1] for region in regions])
         readed_size = 0
         with tqdm(total=regions_size, desc="progress") as bar:

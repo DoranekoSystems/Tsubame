@@ -61,8 +61,11 @@ class MEDITAPI:
                 ret = self.decompress_lz4(ret)
         return ret
 
-    def virtualqueryexfull(self):
-        return self.frida_api.VirtualQueryExFull()
+    def virtualqueryexfull(self, protect):
+        return self.frida_api.VirtualQueryExFull(protect)
+
+    def getmodule(self, name):
+        return self.frida_api.GetModule(name)
 
     def memoryscan(self, start, size, bytecode):
         return self.frida_api.MemoryScan(start, size, bytecode.hex())

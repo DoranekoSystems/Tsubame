@@ -183,8 +183,8 @@ rpc.exports = {
       return false;
     }
   },
-  virtualqueryexfull: function () {
-    var regionList = Process.enumerateRanges('r--');
+  virtualqueryexfull: function (protect) {
+    var regionList = Process.enumerateRanges(protect);
     var regionSize = Object.keys(regionList).length;
     var regionInfos = [];
     for (var i = 0; i < regionSize; i++) {
@@ -220,5 +220,14 @@ rpc.exports = {
       return null;
     }
     return scanSync;
+  },
+  getmodule: function (name) {
+    try {
+      var module = Process.findModuleByName(name);
+      return [module.name, module.base, module.size];
+    } catch (e) {
+      console.log(e);
+      return false;
+    }
   },
 };
