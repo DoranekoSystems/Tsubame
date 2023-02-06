@@ -146,7 +146,7 @@ class MemoryFile:
 
         size = self.high - self.low
         self.high = self.low + size
-        ret = API.ReadProcessMemory(self.low, size, False)
+        ret = API.readprocessmemory(self.low, size)
         if ret == False:
             return bytearray(b"\x00" * size)
         else:
@@ -1749,7 +1749,7 @@ class HexWindow(textmode.Window):
 
     def check_and_getdata(self):
         data = 0
-        ret = API.ReadProcessMemory(self.address, 1024, False)
+        ret = API.readprocessmemory(self.address, 1024)
         if ret == False:
             data = bytearray(b"\x00" * 1024)
         else:
@@ -1801,12 +1801,12 @@ class HexWindow(textmode.Window):
                     self.data[pos] = (0x10 * int(key, 16)) | (orig & 0x0F)
                     self.edit_position = 1
                     params = {"address": pos, "buffer": [self.data[pos]]}
-                    API.WriteProcessMemory(pos, [self.data[pos]])
+                    API.writeprocessmemory(pos, [self.data[pos]])
                 elif self.edit_position == 1:
                     self.data[pos] = (0x01 * int(key, 16)) | (orig & 0xF0)
                     self.edit_position = 2
                     params = {"address": pos, "buffer": [self.data[pos]]}
-                    API.WriteProcessMemory(pos, [self.data[pos]])
+                    API.writeprocessmemory(pos, [self.data[pos]])
                 else:
                     self.edit_position = 0
                     self.move_right()
@@ -2569,9 +2569,9 @@ def get_options():
     return name
 
 
-def memory_view_mode(api, address):
+def memory_view_mode(medit_api, address):
     global API
-    API = api
+    API = medit_api
     filename_ = get_options()
 
     textmode.init()

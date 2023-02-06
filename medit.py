@@ -100,7 +100,6 @@ def exec_command(answers, command, pid, medit_api, scan):
     if command == "find":
         types = answers["find_data_type"]
         value = answers["find_input_value"]
-        print(types)
         scan.find(value, types)
         print(f"HIT COUNT:{len(scan.address_list)}!!\n")
 
@@ -165,7 +164,7 @@ def exec_command(answers, command, pid, medit_api, scan):
             t1 = Thread(target=run)
             t1.start()
         else:
-            memory_view_mode(api, address)
+            memory_view_mode(medit_api, address)
 
     elif command == "exit":
         print(Fore.BLACK + "exit.")

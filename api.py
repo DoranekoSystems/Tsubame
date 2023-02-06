@@ -65,4 +65,4 @@ class MEDITAPI:
         return self.frida_api.VirtualQueryExFull()
 
     def memoryscan(self, start, size, bytecode):
-        self.frida_api.MemoryScan(start, size, bytecode.hex())
+        return self.frida_api.MemoryScan(start, size, bytecode.hex())

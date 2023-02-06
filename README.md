@@ -1,10 +1,12 @@
-# tsubame
+# Tsubame
 
 <img width="400" alt="img" src="https://user-images.githubusercontent.com/96031346/214802113-4b7d62b6-2ac5-4e4b-a922-f45c529b81ab.png">
 
-cross-platform cui-based process memory analyzer.
+cross-platform cui-based process memory analyzer.  
+"Tsubame" is the Japanese word for swallow.
 
 ## Memory Scanner
+
 ```
 ? Please Input a command. find
 ? Please Input a data type. ['dword']
@@ -48,9 +50,7 @@ pip install -r requirements_windows.txt
 pip install -r requirements_mac.txt
 ```
 
-
-
-Install and start frida-server.   
+Install and start frida-server.
 
 ```
 python main.py Cydia
@@ -65,6 +65,7 @@ python main.py -p ProcessId
 ```
 
 # Known Issues
+
 - filter is slow
 
 # License
@@ -72,5 +73,5 @@ python main.py -p ProcessId
 ## MemoryView
 
 The original software is available at  
-https://github.com/walterdejong/hexview.    
-This project is a partial enhancement of the above great software.  
+https://github.com/walterdejong/hexview.  
+This project is a partial enhancement of the above great software.

@@ -69,7 +69,7 @@ class Scanner:
                 else:
                     sp = util.StructPack(value, _type)
                     bytecode = sp.pack()
-                    addresses = self.medit_api(start, size, bytecode)
+                    addresses = self.medit_api.memoryscan(start, size, bytecode)
                     if addresses != None:
                         for address in addresses:
                             ad = int(address["address"], 16)
