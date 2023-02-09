@@ -7,6 +7,7 @@ import struct
 from threading import Thread
 import subprocess
 import platform
+import bisect
 from tqdm import tqdm
 import hexdump
 import lz4.block
@@ -14,6 +15,13 @@ from define import OS, MODE
 from colorama import Fore, Back, Style
 import api
 import util
+
+
+def index(a, x):
+    i = bisect.bisect_left(a, x)
+    if i != len(a) and a[i] == x:
+        return i
+    return -1
 
 
 class Scanner:
@@ -29,6 +37,8 @@ class Scanner:
         self.protect = "r--"
         self.start_address = 0
         self.end_address = 0x7FFFFFFFFFFFFFFF
+        self.near_front = 0
+        self.near_back = 0
 
     def find(self, value, _type):
         self.scan_value = value
@@ -94,6 +104,14 @@ class Scanner:
         _type = self.scan_type
         filtered_list = []
         regions = self.medit_api.virtualqueryexfull(self.protect)
+        tmp_regions = []
+        for region in regions:
+            start_address = max(region[0], self.start_address)
+            end_address = min(region[0] + region[1], self.end_address)
+            if start_address < end_address:
+                size = end_address - start_address + 1
+                tmp_regions.append([start_address, size])
+        regions = tmp_regions
         regions_size = sum([region[1] for region in regions])
         readed_size = 0
         with tqdm(total=regions_size, desc="progress") as bar:
@@ -117,7 +135,7 @@ class Scanner:
                                 bytecode = value.encode()
                             for match in re.finditer(bytecode, ret):
                                 address = tmp + match.start()
-                                if address in self.addresses:
+                                if index(self.addresses, address) != -1:
                                     filtered_list.append(
                                         {
                                             "address": address,
@@ -133,9 +151,12 @@ class Scanner:
                     bytecode = sp.pack()
                     addresses = self.medit_api.memoryscan(start, size, bytecode)
                     if addresses != None:
-                        for address in addresses:
-                            ad = int(address["address"], 16)
-                            if ad in self.addresses:
-                                filtered_list.append({"address": ad, "size": size})
+                        r = [
+                            {"address": int(x["address"], 16), "size": x["xize"]}
+                            for x in addresses
+                            if index(self.addresses, int(x["address"], 16)) != -1
+                        ]
+                        if len(r) > 0:
+                            filtered_list.extend(r)
                     bar.update(size)
         self.address_list = filtered_list

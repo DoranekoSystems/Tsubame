@@ -131,6 +131,7 @@ def exec_command(answers, command, pid, medit_api, scan):
         parser.add_argument("-s", "--start")
         parser.add_argument("-e", "--end")
         parser.add_argument("-p", "--protect")
+        parser.add_argument("-n", "--nearby")
         args = parser.parse_args(value.split(" "))
         if args.protect != None:
             scan.protect = args.protect
@@ -142,6 +143,8 @@ def exec_command(answers, command, pid, medit_api, scan):
             print(
                 f"set search region:{hex(scan.start_address)}-{hex(scan.end_address)}"
             )
+        if args.nearby != None:
+            scan.near_front, scan.near_back = args.nearby.split(",")
 
     elif command == "dump":
         value = answers["dump_input_value"]
