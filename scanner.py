@@ -152,7 +152,7 @@ class Scanner:
                     addresses = self.medit_api.memoryscan(start, size, bytecode)
                     if addresses != None:
                         r = [
-                            {"address": int(x["address"], 16), "size": x["xize"]}
+                            {"address": int(x["address"], 16), "size": x["size"]}
                             for x in addresses
                             if index(self.addresses, int(x["address"], 16)) != -1
                         ]
