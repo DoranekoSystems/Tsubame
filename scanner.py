@@ -23,10 +23,12 @@ class Scanner:
         self.custom_read_memory = config["extended_function"]["custom_read_memory"]
         self.addresses = []
         self.address_list = []
-        self.rpm_max_size = 524288 * 128
+        self.rpm_max_size = 524288
         self.scan_type = ""
         self.scan_value = None
         self.protect = "r--"
+        self.start_address = 0
+        self.end_address = 0x7FFFFFFFFFFFFFFF
 
     def find(self, value, _type):
         self.scan_value = value
@@ -34,6 +36,14 @@ class Scanner:
         self.addresses = []
         self.address_list = []
         regions = self.medit_api.virtualqueryexfull(self.protect)
+        tmp_regions = []
+        for region in regions:
+            start_address = max(region[0], self.start_address)
+            end_address = min(region[0] + region[1], self.end_address)
+            if start_address < end_address:
+                size = end_address - start_address + 1
+                tmp_regions.append([start_address, size])
+        regions = tmp_regions
         regions_size = sum([region[1] for region in regions])
         readed_size = 0
         with tqdm(total=regions_size, desc="progress") as bar:
