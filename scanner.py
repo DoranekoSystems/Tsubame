@@ -88,8 +88,11 @@ class Scanner:
                         remain_size -= read_size
                         bar.update(read_size)
                 else:
-                    sp = util.StructPack(value, _type)
-                    bytecode = sp.pack()
+                    if _type == "aob":
+                        bytecode = value
+                    else:
+                        sp = util.StructPack(value, _type)
+                        bytecode = sp.pack().hex()
                     addresses = self.medit_api.memoryscan(start, size, bytecode)
                     if addresses != None:
                         for address in addresses:
@@ -147,8 +150,11 @@ class Scanner:
                         remain_size -= read_size
                         bar.update(read_size)
                 else:
-                    sp = util.StructPack(value, _type)
-                    bytecode = sp.pack()
+                    if _type == "aob":
+                        bytecode = value
+                    else:
+                        sp = util.StructPack(value, _type)
+                        bytecode = sp.pack().hex()
                     addresses = self.medit_api.memoryscan(start, size, bytecode)
                     if addresses != None:
                         r = [
