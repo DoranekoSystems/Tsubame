@@ -69,3 +69,6 @@ class MEDITAPI:
 
     def memoryscan(self, start, size, bytecode):
         return self.frida_api.MemoryScan(start, size, bytecode)
+
+    def memoryfilter(self, addresses):
+        return self.frida_api.MemoryFilter(addresses)

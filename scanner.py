@@ -8,6 +8,7 @@ from threading import Thread
 import subprocess
 import platform
 import bisect
+from sortedcontainers import SortedList
 from tqdm import tqdm
 import hexdump
 import lz4.block
@@ -17,11 +18,21 @@ import api
 import util
 
 
+def add_spaces(s):
+    return " ".join([s[i : i + 2] for i in range(0, len(s), 2)])
+
+
 def index(a, x):
     i = bisect.bisect_left(a, x)
     if i != len(a) and a[i] == x:
         return i
     return -1
+
+
+def NumbersWithinRange(items, lower, upper):
+    start = items.bisect(lower)
+    end = items.bisect_right(upper)
+    return items[start:end]
 
 
 class Scanner:
@@ -63,7 +74,7 @@ class Scanner:
                 tmp = start
                 remain_size = size
                 ret = b""
-                if self.custom_read_memory or _type == "regex":
+                if _type == "regex":
                     while remain_size > 0:
                         read_size = min(remain_size, self.rpm_max_size)
                         result = self.medit_api.readprocessmemory(tmp, read_size)
@@ -89,7 +100,7 @@ class Scanner:
                         bar.update(read_size)
                 else:
                     if _type == "aob":
-                        bytecode = value
+                        bytecode = add_spaces(value.replace(" ", ""))
                     else:
                         sp = util.StructPack(value, _type)
                         bytecode = sp.pack().hex()
@@ -103,7 +114,6 @@ class Scanner:
                     bar.update(size)
 
     def filter(self, value):
-        # todo:
         _type = self.scan_type
         filtered_list = []
         regions = self.medit_api.virtualqueryexfull(self.protect)
@@ -124,45 +134,63 @@ class Scanner:
                 tmp = start
                 remain_size = size
                 ret = b""
-                if self.custom_read_memory or _type == "regex":
-                    while remain_size > 0:
-                        read_size = min(remain_size, self.rpm_max_size)
-                        result = self.medit_api.readprocessmemory(tmp, read_size)
-                        if result != False:
-                            ret = result
-                            if _type != "regex":
-                                sp = util.StructPack(value, _type)
-                                bytecode = sp.pack()
-                                bytecode = re.escape(bytecode)
-                            elif _type == "regex":
-                                bytecode = value.encode()
-                            for match in re.finditer(bytecode, ret):
-                                address = tmp + match.start()
-                                if index(self.addresses, address) != -1:
-                                    filtered_list.append(
-                                        {
-                                            "address": address,
-                                            "size": len(match.group(0)),
-                                        }
-                                    )
-                        tmp += read_size
-                        readed_size += read_size
-                        remain_size -= read_size
-                        bar.update(read_size)
-                else:
-                    if _type == "aob":
-                        bytecode = value
+                data = SortedList(self.addresses)
+                addresses_in_region = NumbersWithinRange(data, start, start + size)
+                if len(addresses_in_region) > 0:
+                    if _type == "regex":
+                        while remain_size > 0:
+                            read_size = min(remain_size, self.rpm_max_size)
+                            result = self.medit_api.readprocessmemory(tmp, read_size)
+                            if result != False:
+                                ret = result
+                                if _type != "regex":
+                                    sp = util.StructPack(value, _type)
+                                    bytecode = sp.pack()
+                                    bytecode = re.escape(bytecode)
+                                elif _type == "regex":
+                                    bytecode = value.encode()
+                                for match in re.finditer(bytecode, ret):
+                                    address = tmp + match.start()
+                                    if index(addresses_in_region, address) != -1:
+                                        filtered_list.append(
+                                            {
+                                                "address": address,
+                                                "size": len(match.group(0)),
+                                            }
+                                        )
+                            tmp += read_size
+                            readed_size += read_size
+                            remain_size -= read_size
+                            bar.update(read_size)
                     else:
-                        sp = util.StructPack(value, _type)
-                        bytecode = sp.pack().hex()
-                    addresses = self.medit_api.memoryscan(start, size, bytecode)
-                    if addresses != None:
-                        r = [
-                            {"address": int(x["address"], 16), "size": x["size"]}
-                            for x in addresses
-                            if index(self.addresses, int(x["address"], 16)) != -1
-                        ]
-                        if len(r) > 0:
-                            filtered_list.extend(r)
+                        if _type == "aob":
+                            bytecode = add_spaces(value.replace(" ", ""))
+                            bytecode_size = int((len(bytecode) + 1) / 3)
+                        else:
+                            sp = util.StructPack(value, _type)
+                            bytecode = sp.pack().hex().zfill(sp.size() * 2)
+                            bytecode_size = int(len(bytecode) / 2)
+                        if len(addresses_in_region) < 1000:
+                            address_infos = [
+                                [x, bytecode_size, bytecode]
+                                for x in addresses_in_region
+                            ]
+                            addresses = self.medit_api.memoryfilter(address_infos)
+                        else:
+                            addresses = self.medit_api.memoryscan(start, size, bytecode)
+                        if addresses != None:
+                            r = [
+                                {
+                                    "address": int(x["address"], 16),
+                                    "size": x["size"],
+                                }
+                                for x in addresses
+                                if index(addresses_in_region, int(x["address"], 16))
+                                != -1
+                            ]
+                            if len(r) > 0:
+                                filtered_list.extend(r)
+                        bar.update(size)
+                else:
                     bar.update(size)
         self.address_list = filtered_list

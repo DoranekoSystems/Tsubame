@@ -1,3 +1,27 @@
+function dump(pointer, length) {
+  var buf = Memory.readByteArray(pointer, length);
+  console.log(
+    hexdump(buf, {
+      offset: 0,
+      length: length,
+      header: true,
+      ansi: true,
+    })
+  );
+}
+
+function b2s(array) {
+  var result = '';
+  for (var i = 0; i < array.length; i++) {
+    result += String.fromCharCode(modulus(array[i], 256));
+  }
+  return result;
+}
+
+function zeroPadding(NUM, LEN) {
+  return (Array(LEN).join('0') + NUM).slice(-LEN);
+}
+
 const COMPRESSION_LZ4 = 0x100;
 const COMPRESSION_LZ4_RAW = 0x101;
 const COMPRESSION_ZLIB = 0x205;
@@ -220,6 +244,33 @@ rpc.exports = {
       return null;
     }
     return scanSync;
+  },
+  memoryfilter: function (address_infos) {
+    var filterd = [];
+    for (var i = 0; i < address_infos.length; i++) {
+      var address_info = address_infos[i];
+      var address = address_info[0];
+      var size = address_info[1];
+      var bytecode = address_info[2].replaceAll(' ', '');
+      var bytes = Memory.readByteArray(ptr(address), size);
+      var b = new Uint8Array(bytes);
+      var str = '';
+      for (var j = 0; j < b.length; j++) {
+        str += zeroPadding(b[j].toString(16), 2);
+      }
+      var flag = true;
+      for (var j = 0; j < bytecode.length; j++) {
+        if (str[j] != bytecode[j] && bytecode[j] != '?') {
+          flag = false;
+          break;
+        }
+      }
+      if (flag) {
+        filterd.push({ address: address.toString(16), size: size });
+      }
+    }
+    if (filterd.length == 0) return null;
+    return filterd;
   },
   getmodule: function (name) {
     try {
