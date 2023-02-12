@@ -64,9 +64,9 @@ python main.py com.saurik.Cydia
 python main.py -p ProcessId
 ```
 
-# Known Issues
+# Wiki
 
-- filter is slow
+[Command List](https://github.com/DoranekoSystems/Tsubame/wiki/Command-List)
 
 # License
 

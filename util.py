@@ -45,11 +45,11 @@ class StructPack:
 
     def pack(self):
         if self.type == "word":
-            bytecode = pack("<H", int(self.value))
+            bytecode = pack("<H", int(self.value, 0))
         elif self.type == "dword":
-            bytecode = pack("<I", int(self.value))
+            bytecode = pack("<I", int(self.value, 0))
         elif self.type == "qword":
-            bytecode = pack("<Q", int(self.value))
+            bytecode = pack("<Q", int(self.value, 0))
         elif self.type == "float":
             bytecode = pack("<f", float(self.value))
         elif self.type == "double":

@@ -116,7 +116,8 @@ class Scanner:
 
     def filter(self, value):
         _type = self.scan_type
-        filtered_list = []
+        filterd_list = []
+        filterd_addresses = []
         regions = self.medit_api.virtualqueryexfull(self.protect)
         tmp_regions = []
         for region in regions:
@@ -128,6 +129,19 @@ class Scanner:
         regions = tmp_regions
         regions_size = sum([region[1] for region in regions])
         readed_size = 0
+
+        # nearby search
+        if self.near_back != 0 or self.near_front != 0:
+            self.addresses = list(
+                set(
+                    [
+                        x + n
+                        for x in self.addresses
+                        for n in range(-1 * self.near_back, self.near_front + 1)
+                    ]
+                )
+            )
+
         with tqdm(total=regions_size, desc="progress") as bar:
             for i, region in enumerate(regions):
                 start = region[0]
@@ -153,12 +167,13 @@ class Scanner:
                                 for match in re.finditer(bytecode, ret):
                                     address = tmp + match.start()
                                     if index(addresses_in_region, address) != -1:
-                                        filtered_list.append(
+                                        filterd_list.append(
                                             {
                                                 "address": address,
                                                 "size": len(match.group(0)),
                                             }
                                         )
+                                        filterd_addresses.append(address)
                             tmp += read_size
                             readed_size += read_size
                             remain_size -= read_size
@@ -171,7 +186,7 @@ class Scanner:
                             sp = util.StructPack(value, _type, self.arch)
                             bytecode = sp.pack().hex().zfill(sp.size() * 2)
                             bytecode_size = int(len(bytecode) / 2)
-                        if len(addresses_in_region) < 1000:
+                        if len(addresses_in_region) < 1000000:
                             address_infos = [
                                 [x, bytecode_size, bytecode]
                                 for x in addresses_in_region
@@ -190,8 +205,10 @@ class Scanner:
                                 != -1
                             ]
                             if len(r) > 0:
-                                filtered_list.extend(r)
+                                filterd_list.extend(r)
+                                filterd_addresses.extend([x["address"] for x in r])
                         bar.update(size)
                 else:
                     bar.update(size)
-        self.address_list = filtered_list
+        self.address_list = filterd_list
+        self.addresses = filterd_addresses

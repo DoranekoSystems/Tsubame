@@ -161,7 +161,9 @@ def exec_command(answers, command, pid, medit_api, scan, info):
                 f"set search region:{hex(scan.start_address)}-{hex(scan.end_address)}"
             )
         if args.nearby != None:
-            scan.near_front, scan.near_back = args.nearby.split(",")
+            scan.near_back, scan.near_front = tuple(
+                map(lambda x: int(x, 0), args.nearby.split(","))
+            )
 
     elif command == "dump":
         value = answers["dump_input_value"]
