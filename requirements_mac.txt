@@ -6,3 +6,5 @@ colorama
 InquirerPy
 frida
 applescript
+capstone
+keystone-engine

@@ -99,12 +99,13 @@ def main(package, pid=None, run_mode="medit", memoryview_address=None):
     script.load()
     frida_api = script.exports
     frida_api.SetConfig(config)
+
+    info = frida_api.GetInfo()
     if mode == MODE.ATTACH.value:
-        info = frida_api.GetInfo()
         process_id = info["pid"]
 
     if run_mode == "medit":
-        medit.run_loop(process_id, config, frida_api)
+        medit.run_loop(process_id, config, frida_api, info)
     else:
         memory_view_mode(frida_api, memoryview_address)
 

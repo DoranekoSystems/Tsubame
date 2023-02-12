@@ -25,7 +25,17 @@ questions = [
         "type": "rawlist",
         "name": "command",
         "message": "Please Input a command.",
-        "choices": ["find", "filter", "patch", "conf", "dump", "list", "view", "exit"],
+        "choices": [
+            "find",
+            "filter",
+            "patch",
+            "conf",
+            "dump",
+            "list",
+            "view",
+            "disasm",
+            "exit",
+        ],
         "default": None,
     },
     {
@@ -39,8 +49,8 @@ questions = [
             "float",
             "double",
             "aob",
+            "asm",
             "utf8",
-            "utf16",
             "regex",
         ],
         "default": "dword",
@@ -88,6 +98,13 @@ questions = [
         "default": "",
         "when": lambda answers: answers["command"] == "view",
     },
+    {
+        "type": "input",
+        "name": "disasm_input_value",
+        "message": "Please Input a value.",
+        "default": "",
+        "when": lambda answers: answers["command"] == "disasm",
+    },
 ]
 
 
@@ -104,7 +121,7 @@ custom_style = {
 MULTIPLE_WINDOW = False
 
 
-def exec_command(answers, command, pid, medit_api, scan):
+def exec_command(answers, command, pid, medit_api, scan, info):
     if command == "find":
         types = answers["find_data_type"]
         value = answers["find_input_value"]
@@ -121,7 +138,7 @@ def exec_command(answers, command, pid, medit_api, scan):
         value = answers["patch_input_value"]
         for address_info in scan.address_list:
             _type = scan.scan_type
-            sp = util.StructPack(value, _type)
+            sp = util.StructPack(value, _type, info["arch"])
             bytecode = sp.pack()
             medit_api.writeprocessmemory(address_info["address"], bytecode)
 
@@ -184,20 +201,28 @@ def exec_command(answers, command, pid, medit_api, scan):
                 print("module not found")
 
     elif command == "list":
+        addresses = [x["address"] for x in scan.address_list]
+        symbols = medit_api.getsymbol(addresses)
         for i, address_info in enumerate(scan.address_list):
             _type = scan.scan_type
             address = address_info["address"]
             read_size = address_info["size"]
             ret = medit_api.readprocessmemory(address, read_size)
             if ret != False:
+                symbol = symbols[i]
+                if symbol.find("!") == -1:
+                    symbol_str = ""
+                else:
+                    symbol_str = f"({symbol})"
+
                 value = ""
                 if _type != "regex":
-                    us = util.StructUnpack(ret, _type)
+                    us = util.StructUnpack(ret, _type, info["arch"])
                     value = us.unpack()
                 else:
                     value = ret.decode("utf-8")
 
-                print(Fore.GREEN + f"{i+1}:{hex(address)}")
+                print(Fore.GREEN + f"{i+1}:{hex(address)} {Fore.BLUE}{symbol_str}")
                 print(Fore.RESET + str(value))
 
     elif command == "view":
@@ -224,6 +249,28 @@ def exec_command(answers, command, pid, medit_api, scan):
             t1.start()
         else:
             memory_view_mode(medit_api, address)
+    elif command == "disasm":
+        value = answers["disasm_input_value"]
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-s", "--start")
+        parser.add_argument("-l", "--length")
+        args = parser.parse_args(value.split(" "))
+        if args.start != None and args.length != None:
+            address = int(args.start, 16)
+            size = int(args.length, 16)
+            ret = medit_api.readprocessmemory(address, size)
+            if ret != False:
+                bytecode = ret
+                sp = util.StructUnpack(bytecode, "asm", info["arch"], address)
+                disasm = sp.unpack()
+                addresses = [int(d.split(":")[0], 16) for d in disasm.split("\n")]
+                symbols = medit_api.getsymbol(addresses)
+                for i, d in enumerate(disasm.split("\n")):
+                    address_str, inst_str = d.split(":")
+                    print(Fore.GREEN + symbols[i], end=":")
+                    print(Fore.RESET + inst_str)
+            else:
+                print("read memory error")
 
     elif command == "exit":
         print(Fore.BLACK + "exit.")
@@ -231,17 +278,17 @@ def exec_command(answers, command, pid, medit_api, scan):
     print("--------------------------------------------------------")
 
 
-def run_loop(pid, config, frida_api):
+def run_loop(pid, config, frida_api, info):
     global MULTIPLE_WINDOW
     MULTIPLE_WINDOW = config["memoryview"]["multiple_window"]
 
-    scan = scanner.Scanner(frida_api, config)
+    scan = scanner.Scanner(frida_api, config, info)
     medit_api = api.MEDITAPI(frida_api, config)
     while True:
         try:
             answers = prompt(questions, style=custom_style)
             command = answers["command"]
-            exec_command(answers, command, pid, medit_api, scan)
+            exec_command(answers, command, pid, medit_api, scan, info)
         except KeyboardInterrupt as e:
             print("stopping")
         except Exception as e:
