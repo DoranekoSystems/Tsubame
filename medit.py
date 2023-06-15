@@ -33,7 +33,6 @@ questions = [
             "dump",
             "list",
             "view",
-            "disasm",
             "exit",
         ],
         "default": None,
@@ -49,7 +48,6 @@ questions = [
             "float",
             "double",
             "aob",
-            "asm",
             "utf8",
             "regex",
         ],
@@ -281,11 +279,12 @@ def exec_command(answers, command, pid, medit_api, scan, info):
 
 
 def run_loop(pid, config, frida_api, info):
-    global MULTIPLE_WINDOW
-    MULTIPLE_WINDOW = config["memoryview"]["multiple_window"]
-
-    scan = scanner.Scanner(frida_api, config, info)
+    scan = scanner.Scanner(frida_api, config)
     medit_api = api.MEDITAPI(frida_api, config)
+    import gui
+
+    gui.exec(pid, medit_api, scan, info)
+    return
     while True:
         try:
             answers = prompt(questions, style=custom_style)

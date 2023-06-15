@@ -6,5 +6,5 @@ colorama
 InquirerPy
 frida
 windows-curses
-capstone
-keystone-engine
+sortedcontainers
+textual

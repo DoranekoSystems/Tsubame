@@ -4,13 +4,9 @@ targetOS = "ios"
 mode =  "attach"
 binary_path = ""
 
-[memoryview]
-# windows and mac only
-multiple_window = false
-
 [ipconfig]
 frida_server_ip =  ""
 
 [extended_function]
 ignore_mapped_file = false
-custom_read_memory = false
+custom_read_memory = true

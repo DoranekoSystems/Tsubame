@@ -97,7 +97,7 @@ def main(package, pid=None, run_mode="medit", memoryview_address=None):
     script = session.create_script(jscode)
     script.on("message", on_message)
     script.load()
-    frida_api = script.exports
+    frida_api = script.exports_sync
     frida_api.SetConfig(config)
 
     info = frida_api.GetInfo()
