@@ -14,7 +14,7 @@ from rich.text import Text
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical,ScrollableContainer
+from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
 from textual.reactive import reactive
 from textual.widgets import (
     Button,
@@ -28,7 +28,7 @@ from textual.widgets import (
     Label,
     Checkbox,
     RadioButton,
-    RadioSet
+    RadioSet,
 )
 import util
 import platform
@@ -187,8 +187,8 @@ class LocationLink(Static):
 
 class SearchForm(Container):
     def compose(self) -> ComposeResult:
-        yield Static("Scan Value",classes="label")
-        yield Input(placeholder="Input Scan Value",id="value_input")
+        yield Static("Scan Value", classes="label")
+        yield Input(placeholder="Input Scan Value", id="value_input")
         yield Static()
         with Horizontal():
             yield Button("Find", variant="primary", name="find", classes="scan_button")
@@ -200,47 +200,54 @@ class SearchForm(Container):
         yield Static("Scan Type", classes="label")
         with Horizontal(classes="scantype_horizontal"):
             with Vertical():
-                yield RadioButton("  int8",value=False,id="r1",name="r1_int8")
-                yield RadioButton(" int16",value=False,id="r2",name="r2_int16")
-                yield RadioButton(" int32",value=True,id="r3",name="r3_int32")
-                yield RadioButton(" int64",value=False,id="r4",name="r4_int64")
+                yield RadioButton("  int8", value=False, id="r1", name="r1_int8")
+                yield RadioButton(" int16", value=False, id="r2", name="r2_int16")
+                yield RadioButton(" int32", value=True, id="r3", name="r3_int32")
+                yield RadioButton(" int64", value=False, id="r4", name="r4_int64")
             with Vertical():
-                yield RadioButton(" uint8",value=False,id="r5",name="r5_uint8")
-                yield RadioButton("uint16",value=False,id="r6",name="r6_uint16")
-                yield RadioButton("uint32",value=False,id="r7",name="r7_uint32")
-                yield RadioButton("uint64",value=False,id="r8",name="r8_uint64")
+                yield RadioButton(" uint8", value=False, id="r5", name="r5_uint8")
+                yield RadioButton("uint16", value=False, id="r6", name="r6_uint16")
+                yield RadioButton("uint32", value=False, id="r7", name="r7_uint32")
+                yield RadioButton("uint64", value=False, id="r8", name="r8_uint64")
             with Vertical():
-                yield RadioButton(" float",value=False,id="r9",name="r9_float")
-                yield RadioButton("double",value=False,id="r10",name="r10_double")
-                yield RadioButton("  utf8",value=False,id="r11",name="r11_utf8")
-                yield RadioButton(" utf16",value=False,id="r12",name="r12_utf16")
+                yield RadioButton(" float", value=False, id="r9", name="r9_float")
+                yield RadioButton("double", value=False, id="r10", name="r10_double")
+                yield RadioButton("  utf8", value=False, id="r11", name="r11_utf8")
+                yield RadioButton(" utf16", value=False, id="r12", name="r12_utf16")
             with Vertical():
-                yield RadioButton("   aob",value=False,id="r13",name="r13_aob")
-                yield RadioButton(" regex",value=False,id="r14",name="r14_regex")
-        
+                yield RadioButton("   aob", value=False, id="r13", name="r13_aob")
+                yield RadioButton(" regex", value=False, id="r14", name="r14_regex")
+
         yield Static("Scan Memory Protection", classes="label")
         with Horizontal(classes="checkbox_horizontal"):
-            yield Checkbox("Read",True,id="read_checkbox")
-            yield Checkbox("Write",True,id="write_checkbox")
-            yield Checkbox("Execute",False,id="execute_checkbox")
+            yield Checkbox("Read", True, id="read_checkbox")
+            yield Checkbox("Write", True, id="write_checkbox")
+            yield Checkbox("Execute", False, id="execute_checkbox")
         yield Static("Scan Memory Range", classes="label")
         with Horizontal(classes="range_horizontal"):
-            yield Input(placeholder="Start Address(hex)", id="start_input",value="0")
-            yield Input(placeholder="End Address(hex)", id="end_input",value="0x7FFFFFFFFFFFFFFF")
+            yield Input(placeholder="Start Address(hex)", id="start_input", value="0")
+            yield Input(
+                placeholder="End Address(hex)",
+                id="end_input",
+                value="0x7FFFFFFFFFFFFFFF",
+            )
             yield Button(
-                "Range Reset", variant="primary", name="range_reset", id = "range_reset_button"
+                "Range Reset",
+                variant="primary",
+                name="range_reset",
+                id="range_reset_button",
             )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.screen.query_one(TextLog).write(event.button.name)
         if event.button.name == "find":
             if SCAN.scan_complete:
-                read =  "r" if self.query_one("#read_checkbox").value else "-"
-                write =  "w" if self.query_one("#write_checkbox").value else "-"
+                read = "r" if self.query_one("#read_checkbox").value else "-"
+                write = "w" if self.query_one("#write_checkbox").value else "-"
                 execute = "x" if self.query_one("#execute_checkbox").value else "-"
                 permission = read + write + execute
-                start_address =  int(self.query_one("#start_input").value,16)
-                end_address = int(self.query_one("#end_input").value,16)
+                start_address = int(self.query_one("#start_input").value, 16)
+                end_address = int(self.query_one("#end_input").value, 16)
                 value = self.query_one("#value_input").value
                 progress = self.query_one("#progress")
                 scan_type = ""
@@ -304,12 +311,29 @@ class AddressView(Container):
             )
         yield Static("Memory View", classes="label")
         with Horizontal():
-            yield Input(
-                placeholder="Input Index or Address(hex)", id="watch_input"
-            )
+            yield Input(placeholder="Input Index or Address(hex)", id="watch_input")
             yield Button(
                 "Watch", variant="primary", name="watch", classes="watch_button"
             )
+
+    def on_mount(self) -> None:
+        self.set_interval(30 / 60, self.update_address_view).resume()
+
+    def update_address_view(self) -> None:
+        datatable = self.query_one(DataTable)
+        top_index = int(datatable.scroll_y)
+        for i in range(20):
+            if datatable.is_valid_row_index(top_index + i):
+                address = SCAN.address_list[top_index + i]["address"]
+                size = SCAN.address_list[top_index + i]["size"]
+                ret = MEDIT_API.readprocessmemory(address, size)
+                if ret:
+                    bytecode = ret
+                    scan_type = SCAN.scan_type
+                    sup = util.StructUnpack(bytecode, scan_type)
+                    value = sup.unpack()
+                    datatable.update_cell_at((top_index + i, 2), value)
+                    datatable.refresh_row(top_index + i)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.screen.query_one(TextLog).write(event.button.name)
@@ -344,7 +368,7 @@ class AddressView(Container):
                 else:
                     print("Not Support")
 
-            t1 = threading.Thread(target=run,daemon=True)
+            t1 = threading.Thread(target=run, daemon=True)
             t1.start()
 
 
@@ -394,7 +418,7 @@ class DemoApp(App[None]):
             Body(
                 QuickAccess(
                     LocationLink("TOP", ".location-top"),
-                    LocationLink("Memory Editor", ".location-editor")
+                    LocationLink("Memory Editor", ".location-editor"),
                 ),
                 AboveFold(Welcome(), classes="location-top"),
                 Column(
@@ -404,7 +428,7 @@ class DemoApp(App[None]):
                         AddressView(),
                     ),
                     classes="location-editor location-first",
-                )
+                ),
             ),
         )
         yield Footer()

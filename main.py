@@ -130,7 +130,11 @@ if __name__ == "__main__":
             else:
                 main(args[1], None, run_mode, memoryview_address)
         else:
-            main(target, None, run_mode, memoryview_address)
+            if run_mode == "memoryview":
+                pid = int(args[2])
+                main(None, pid, run_mode, memoryview_address)
+            else:
+                main(target, None, run_mode, memoryview_address)
     else:
         if target == "":
             if binary_path == "":
@@ -142,4 +146,8 @@ if __name__ == "__main__":
             else:
                 main("", None, run_mode, memoryview_address)
         else:
-            main(target, None, run_mode, memoryview_address)
+            if run_mode == "memoryview":
+                pid = int(args[2])
+                main(None, pid, run_mode, memoryview_address)
+            else:
+                main(target, None, run_mode, memoryview_address)
