@@ -340,7 +340,7 @@ class AddressView(Container):
         if event.button.name == "patch":
             _type = SCAN.scan_type
             index = int(self.query_one("#index_input").value) - 1
-            value = str(int(self.query_one("#value_input").value))
+            value = self.query_one("#value_input").value
             sp = util.StructPack(value, _type)
             bytecode = sp.pack()
             MEDIT_API.writeprocessmemory(SCAN.address_list[index]["address"], bytecode)
