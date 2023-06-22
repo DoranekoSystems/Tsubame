@@ -1,9 +1,9 @@
 # Tsubame
 
-Cross Platform TUI based process memory analyzer.
+Cross Platform TUI based process memory analyzer.  
 "Tsubame" is the Japanese word for swallow.
 
-<img width="800" alt="img" src="https://github.com/DoranekoSystems/Tsubame/assets/96031346/96f136b9-fe62-43be-828b-62c501aa597f">
+<img width="800" alt="screenshot" src="https://github.com/DoranekoSystems/Tsubame/assets/96031346/7d576ef4-d1c0-4205-b735-0d6c486827e1">
 
 # Usage
 
@@ -30,10 +30,6 @@ python main.py com.saurik.Cydia
 
 python main.py -p ProcessId
 ```
-
-# Wiki
-
-[Command List](https://github.com/DoranekoSystems/Tsubame/wiki/Command-List)
 
 # License
 
