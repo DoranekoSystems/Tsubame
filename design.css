@@ -230,10 +230,6 @@ Version {
     padding: 1;
 }
 
-.scan_button{
-    margin: 0 4 0 0;
-}
-
 AddressView {
     height:30
 }
@@ -260,4 +256,17 @@ SearchForm .range_horizontal{
 
 SearchForm Input{
     width:30%;
+}
+
+#scan_value_input{
+    width:70%;
+}
+
+.scan_button{
+    margin: 0 2 0 0;
+}
+
+.nearby_input {
+    width:15%;
+    margin:0 0 0 0;
 }

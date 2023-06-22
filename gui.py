@@ -35,67 +35,14 @@ import platform
 import os
 import subprocess
 
-from_markup = Text.from_markup
-
-example_table = Table(
-    show_edge=False,
-    show_header=True,
-    expand=True,
-    row_styles=["none", "dim"],
-    box=box.SIMPLE,
-)
-example_table.add_column(from_markup("[green]Date"), style="green", no_wrap=True)
-example_table.add_column(from_markup("[blue]Title"), style="blue")
-
-example_table.add_column(
-    from_markup("[magenta]Box Office"),
-    style="magenta",
-    justify="right",
-    no_wrap=True,
-)
-example_table.add_row(
-    "Dec 20, 2019",
-    "Star Wars: The Rise of Skywalker",
-    "$375,126,118",
-)
-example_table.add_row(
-    "May 25, 2018",
-    from_markup("[b]Solo[/]: A Star Wars Story"),
-    "$393,151,347",
-)
-example_table.add_row(
-    "Dec 15, 2017",
-    "Star Wars Ep. VIII: The Last Jedi",
-    from_markup("[bold]$1,332,539,889[/bold]"),
-)
-example_table.add_row(
-    "May 19, 1999",
-    from_markup("Star Wars Ep. [b]I[/b]: [i]The phantom Menace"),
-    "$1,027,044,677",
-)
-
-
 WELCOME_MD = """
 
 ## Tsubame
 
-**cross-platform tui-based process memory analyzer.**
+**Cross Platform TUI based process memory analyzer.**
 """
 
-MESSAGE = """
-We hope you enjoy using Textual.
-
-Here are some links. You can click these!
-
-[@click="app.open_link('https://textual.textualize.io')"]Textual Docs[/]
-
-[@click="app.open_link('https://github.com/Textualize/textual')"]Textual GitHub Repository[/]
-
-[@click="app.open_link('https://github.com/Textualize/rich')"]Rich GitHub Repository[/]
-
-
-Built with ♥  by [@click="app.open_link('https://www.textualize.io')"]Textualize.io[/]
-"""
+MESSAGE = ""
 
 
 class Body(ScrollableContainer):
@@ -188,15 +135,29 @@ class LocationLink(Static):
 class SearchForm(Container):
     def compose(self) -> ComposeResult:
         yield Static("Scan Value", classes="label")
-        yield Input(placeholder="Input Scan Value", id="value_input")
+        yield Input(placeholder="Input Scan Value", id="scan_value_input")
         yield Static()
         with Horizontal():
             yield Button("Find", variant="primary", name="find", classes="scan_button")
             yield Button(
                 "Filter", variant="primary", name="filter", classes="scan_button"
             )
-            yield Static("0", id="progress")
-            yield Static("", id="founds")
+            yield Button(
+                "NearBy", variant="primary", name="nearby", classes="scan_button"
+            )
+            yield Input(
+                placeholder="nearby back",
+                id="nearby_back_value_input",
+                classes="nearby_input",
+            )
+            yield Input(
+                placeholder="nearby front",
+                id="nearby_front_value_input",
+                classes="nearby_input",
+            )
+        with Horizontal():
+            yield Static("0", id="scan_progress")
+            yield Static("", id="scan_founds")
         yield Static("Scan Type", classes="label")
         with Horizontal(classes="scantype_horizontal"):
             with Vertical():
@@ -248,34 +209,37 @@ class SearchForm(Container):
                 permission = read + write + execute
                 start_address = int(self.query_one("#start_input").value, 16)
                 end_address = int(self.query_one("#end_input").value, 16)
-                value = self.query_one("#value_input").value
-                progress = self.query_one("#progress")
+                value = self.query_one("#scan_value_input").value
                 scan_type = ""
                 for i in range(14):
                     if self.query_one(f"#r{i+1}").value:
                         scan_type = self.query_one(f"#r{i+1}").name.split("_")[1]
-                datatable = self.screen.query_one(DataTable)
                 SCAN.protect = permission
                 SCAN.start_address = start_address
                 SCAN.end_address = end_address
                 t = threading.Thread(
                     target=SCAN.find,
-                    args=(
-                        progress,
-                        datatable,
-                        value,
-                        scan_type,
-                    ),
+                    args=(value, scan_type),
                 )
                 t.start()
         elif event.button.name == "filter":
             if SCAN.scan_complete:
-                value = self.query_one("#value_input").value
-                progress = self.query_one("#progress")
-                datatable = self.screen.query_one(DataTable)
+                value = self.query_one("#scan_value_input").value
                 t = threading.Thread(
                     target=SCAN.filter,
-                    args=(progress, datatable, value),
+                    args=(value,),
+                )
+                t.start()
+        elif event.button.name == "nearby":
+            if SCAN.scan_complete:
+                value = self.query_one("#scan_value_input").value
+                near_back_str = self.query_one("#nearby_back_value_input").value
+                near_front_str = self.query_one("#nearby_front_value_input").value
+                SCAN.near_back = int(near_back_str, 0)
+                SCAN.near_front = int(near_front_str, 0)
+                t = threading.Thread(
+                    target=SCAN.filter,
+                    args=(value,),
                 )
                 t.start()
         elif event.button.name == "range_reset":
@@ -320,20 +284,24 @@ class AddressView(Container):
         self.set_interval(30 / 60, self.update_address_view).resume()
 
     def update_address_view(self) -> None:
-        datatable = self.query_one(DataTable)
-        top_index = int(datatable.scroll_y)
-        for i in range(20):
-            if datatable.is_valid_row_index(top_index + i):
-                address = SCAN.address_list[top_index + i]["address"]
-                size = SCAN.address_list[top_index + i]["size"]
-                ret = MEDIT_API.readprocessmemory(address, size)
-                if ret:
-                    bytecode = ret
-                    scan_type = SCAN.scan_type
-                    sup = util.StructUnpack(bytecode, scan_type)
-                    value = sup.unpack()
-                    datatable.update_cell_at((top_index + i, 2), value)
-                    datatable.refresh_row(top_index + i)
+        if SCAN.scan_complete:
+            datatable = self.query_one(DataTable)
+            top_index = int(datatable.scroll_y)
+            for i in range(20):
+                if datatable.is_valid_row_index(top_index + i):
+                    address = SCAN.address_list[top_index + i]["address"]
+                    size = SCAN.address_list[top_index + i]["size"]
+                    ret = MEDIT_API.readprocessmemory(address, size)
+                    if ret:
+                        bytecode = ret
+                        scan_type = SCAN.scan_type
+                        sup = util.StructUnpack(bytecode, scan_type)
+                        value = sup.unpack()
+                        try:
+                            datatable.update_cell_at((top_index + i, 2), value)
+                            datatable.refresh_row(top_index + i)
+                        except:
+                            break
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.screen.query_one(TextLog).write(event.button.name)
@@ -388,7 +356,7 @@ class Notification(Static):
         self.remove()
 
 
-class DemoApp(App[None]):
+class TsubameApp(App[None]):
     CSS_PATH = "design.css"
     TITLE = "Tsubame"
     BINDINGS = [
@@ -459,6 +427,9 @@ class DemoApp(App[None]):
         # for n in range(20):
         #    table.add_row(*[f"Cell ([b]{n}[/b], {col})" for col in range(2)])
         self.query_one("Welcome Button", Button).focus()
+        SCAN.progress = self.query_one("#scan_progress")
+        SCAN.add_note = self.add_note
+        SCAN.datatable = table
 
     def action_screenshot(self, filename: str | None = None, path: str = "./") -> None:
         """Save an SVG "screenshot". This action will save an SVG file containing the current contents of the screen.
@@ -473,10 +444,6 @@ class DemoApp(App[None]):
         self.add_note(message)
         self.screen.mount(Notification(message))
 
-
-if __name__ == "__main__":
-    app = DemoApp()
-    app.run()
 
 PID = None
 MEDIT_API = None
@@ -493,5 +460,5 @@ def exec(pid, medit_api, scan, info):
     MEDIT_API = medit_api
     SCAN = scan
     INFO = info
-    app = DemoApp()
+    app = TsubameApp()
     app.run()

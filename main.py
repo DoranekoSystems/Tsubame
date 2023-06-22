@@ -5,7 +5,7 @@ import time
 import sys
 import toml
 from define import OS, MODE
-import medit
+import tsubame
 import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/memoryview")
@@ -105,7 +105,7 @@ def main(package, pid=None, run_mode="medit", memoryview_address=None):
         process_id = info["pid"]
 
     if run_mode == "medit":
-        medit.run_loop(process_id, config, frida_api, info)
+        tsubame.run_loop(process_id, config, frida_api, info)
     else:
         memory_view_mode(frida_api, memoryview_address)
 

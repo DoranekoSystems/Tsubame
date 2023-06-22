@@ -51,8 +51,11 @@ class Scanner:
         self.near_front = 0
         self.near_back = 0
         self.scan_complete = True
+        self.progress = None
+        self.add_note = None
+        self.datatable = None
 
-    def find(self, progress, datatable, value, _type):
+    def find(self, value, _type):
         self.scan_complete = False
         self.scan_value = value
         self.scan_type = _type
@@ -60,7 +63,7 @@ class Scanner:
         self.address_list = []
         regions = self.medit_api.virtualqueryexfull(self.protect)
         tmp_regions = []
-        datatable.clear()
+        self.datatable.clear()
         for region in regions:
             start_address = max(region[0], self.start_address)
             end_address = min(region[0] + region[1], self.end_address)
@@ -100,7 +103,7 @@ class Scanner:
                     tmp += read_size
                     readed_size += read_size
                     remain_size -= read_size
-                    progress.update(f"{int(readed_size/regions_size*100)}%")
+                    self.progress.update(f"{int(readed_size/regions_size*100)}%")
             else:
                 if _type == "aob":
                     bytecode = add_spaces(value.replace(" ", ""))
@@ -117,20 +120,20 @@ class Scanner:
                             {"address": ad, "size": sz, "value": value}
                         )
                 readed_size += size
-                progress.update(f"{int(readed_size/regions_size*100)}%")
-        progress.update(f"complete => founds:{len(self.addresses)}")
+                self.progress.update(f"{int(readed_size/regions_size*100)}%")
+        self.progress.update(f"complete => founds:{len(self.addresses)}")
         for i, address in enumerate(self.address_list):
-            datatable.add_row(*[i + 1, hex(address["address"]), address["value"]])
+            self.datatable.add_row(*[i + 1, hex(address["address"]), address["value"]])
         self.scan_complete = True
 
-    def filter(self, progress, datatable, value):
+    def filter(self, value):
         self.scan_complete = False
         _type = self.scan_type
         filterd_list = []
         filterd_addresses = []
         regions = self.medit_api.virtualqueryexfull(self.protect)
         tmp_regions = []
-        datatable.clear()
+        self.datatable.clear()
         for region in regions:
             start_address = max(region[0], self.start_address)
             end_address = min(region[0] + region[1], self.end_address)
@@ -188,7 +191,7 @@ class Scanner:
                         tmp += read_size
                         readed_size += read_size
                         remain_size -= read_size
-                        progress.update(f"{int(readed_size/regions_size*100)}%")
+                        self.progress.update(f"{int(readed_size/regions_size*100)}%")
                 else:
                     if _type == "aob":
                         bytecode = add_spaces(value.replace(" ", ""))
@@ -217,12 +220,14 @@ class Scanner:
                         if len(r) > 0:
                             filterd_list.extend(r)
                             filterd_addresses.extend([x["address"] for x in r])
-                    progress.update(f"{int(readed_size/regions_size*100)}%")
+                    readed_size += size
+                    self.progress.update(f"{int(readed_size/regions_size*100)}%")
             else:
-                progress.update(f"{int(readed_size/regions_size*100)}%")
+                readed_size += size
+                self.progress.update(f"{int(readed_size/regions_size*100)}%")
         self.address_list = filterd_list
         self.addresses = filterd_addresses
-        progress.update(f"complete => founds:{len(self.addresses)}")
+        self.progress.update(f"complete => founds:{len(self.addresses)}")
         for i, address in enumerate(self.address_list):
-            datatable.add_row(*[i + 1, hex(address["address"]), address["value"]])
+            self.datatable.add_row(*[i + 1, hex(address["address"]), address["value"]])
         self.scan_complete = True
