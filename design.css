@@ -283,3 +283,7 @@ ModuleList #dump_input {
 ModuleList #dump_input_horizontal{
     height:5;
 }
+
+MemoryRegions DataTable {
+    height:40;
+}

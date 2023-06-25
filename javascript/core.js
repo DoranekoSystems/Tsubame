@@ -297,4 +297,7 @@ rpc.exports = {
   enummodules:function(){
     return Process.enumerateModules();
   },
+  enumranges:function(){
+    return Process.enumerateRanges("r--");
+  },
 };

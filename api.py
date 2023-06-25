@@ -78,3 +78,6 @@ class MEDITAPI:
 
     def enummodules(self):
         return self.frida_api.EnumModules()
+
+    def enumranges(self):
+        return self.frida_api.EnumRanges()

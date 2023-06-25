@@ -388,6 +388,36 @@ class ModuleList(Container):
                 self.query_one("#dump_result").update("invalid index")
 
 
+class MemoryRegions(Container):
+    def compose(self) -> ComposeResult:
+        yield Button(
+            "Update", variant="primary", name="update", classes="update_button"
+        )
+        yield Static("Regions", classes="label")
+        yield DataTable(id="regions_table")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.screen.query_one(TextLog).write(event.button.name)
+        regions_table = self.screen.query_one("#regions_table")
+        if event.button.name == "update":
+            regions_table.clear()
+            regions = MEDIT_API.enumranges()
+            for i, region in enumerate(regions):
+                if "file" in region:
+                    path = region["file"]["path"]
+                else:
+                    path = ""
+                regions_table.add_row(
+                    *[
+                        i + 1,
+                        region["base"],
+                        hex(region["size"]),
+                        region["protection"],
+                        path,
+                    ]
+                )
+
+
 class Window(Container):
     pass
 
@@ -436,6 +466,7 @@ class TsubameApp(App[None]):
                     LocationLink("TOP", ".location-top"),
                     LocationLink("Memory Editor", ".location-editor"),
                     LocationLink("Module List", ".location-module-list"),
+                    LocationLink("Memory Regions", ".location-memory-regions"),
                 ),
                 AboveFold(Welcome(), classes="location-top"),
                 Column(
@@ -452,6 +483,13 @@ class TsubameApp(App[None]):
                         ModuleList(),
                     ),
                     classes="location-module-list",
+                ),
+                Column(
+                    Section(
+                        SectionTitle("Memory Regions"),
+                        MemoryRegions(),
+                    ),
+                    classes="location-memory-regions",
                 ),
             ),
         )
@@ -487,6 +525,13 @@ class TsubameApp(App[None]):
         module_table.add_column("Size", width=15)
         module_table.add_column("Path", width=180)
         module_table.zebra_stripes = True
+        ranges_table = self.query_one("#regions_table")
+        ranges_table.add_column("Index", width=10)
+        ranges_table.add_column("Base", width=15)
+        ranges_table.add_column("Size", width=15)
+        ranges_table.add_column("Protection", width=10)
+        ranges_table.add_column("File", width=180)
+        ranges_table.zebra_stripes = True
         self.query_one("Welcome Button", Button).focus()
         SCAN.progress = self.query_one("#scan_progress")
         SCAN.add_note = self.add_note
