@@ -294,4 +294,7 @@ rpc.exports = {
       return false;
     }
   },
+  enummodules:function(){
+    return Process.enumerateModules();
+  },
 };

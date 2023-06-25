@@ -265,7 +265,7 @@ class SearchForm(Container):
 class AddressView(Container):
     def compose(self) -> ComposeResult:
         yield Static("Scan Result", classes="label")
-        yield DataTable()
+        yield DataTable(id="address_table")
         yield Static("Patch", classes="label")
         with Horizontal():
             yield Input(placeholder="Input Index", id="index_input")
@@ -285,7 +285,7 @@ class AddressView(Container):
 
     def update_address_view(self) -> None:
         if SCAN.scan_complete:
-            datatable = self.query_one(DataTable)
+            datatable = self.query_one("#address_table")
             top_index = int(datatable.scroll_y)
             for i in range(20):
                 if datatable.is_valid_row_index(top_index + i):
@@ -340,6 +340,54 @@ class AddressView(Container):
             t1.start()
 
 
+class ModuleList(Container):
+    def compose(self) -> ComposeResult:
+        yield Button(
+            "Update", variant="primary", name="update", classes="update_button"
+        )
+        yield Static("Modules", classes="label")
+        yield DataTable(id="module_table")
+        with Horizontal(id="dump_input_horizontal"):
+            yield Input(placeholder="Input Index", id="dump_input")
+            yield Button("Dump", variant="primary", name="dump", classes="dump_button")
+        yield Static("", id="dump_result")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.screen.query_one(TextLog).write(event.button.name)
+        module_table = self.screen.query_one("#module_table")
+        if event.button.name == "update":
+            module_table.clear()
+            modules = MEDIT_API.enummodules()
+            for i, module in enumerate(modules):
+                module_table.add_row(
+                    *[
+                        i + 1,
+                        module["name"],
+                        module["base"],
+                        hex(module["size"]),
+                        module["path"],
+                    ]
+                )
+        elif event.button.name == "dump":
+            index = int(self.query_one("#dump_input").value) - 1
+            if module_table.is_valid_coordinate((index, 0)):
+                name = module_table.get_cell_at((index, 1))
+                base = int(module_table.get_cell_at((index, 2)), 0)
+                size = int(module_table.get_cell_at((index, 3)), 0)
+                ret = MEDIT_API.readprocessmemory(base, size)
+                if ret != False:
+                    bytecode = ret
+                    if not os.path.exists("dump"):
+                        os.mkdir("dump")
+                    with open(os.path.join("dump", name), mode="wb") as f:
+                        f.write(bytecode)
+                    self.query_one("#dump_result").update(f"{name}:dump success!")
+                else:
+                    self.query_one("#dump_result").update(f"{name}:dump error!")
+            else:
+                self.query_one("#dump_result").update("invalid index")
+
+
 class Window(Container):
     pass
 
@@ -387,6 +435,7 @@ class TsubameApp(App[None]):
                 QuickAccess(
                     LocationLink("TOP", ".location-top"),
                     LocationLink("Memory Editor", ".location-editor"),
+                    LocationLink("Module List", ".location-module-list"),
                 ),
                 AboveFold(Welcome(), classes="location-top"),
                 Column(
@@ -396,6 +445,13 @@ class TsubameApp(App[None]):
                         AddressView(),
                     ),
                     classes="location-editor location-first",
+                ),
+                Column(
+                    Section(
+                        SectionTitle("Module List"),
+                        ModuleList(),
+                    ),
+                    classes="location-module-list",
                 ),
             ),
         )
@@ -419,17 +475,22 @@ class TsubameApp(App[None]):
 
     def on_mount(self) -> None:
         self.add_note("Tsubame is running")
-        table = self.query_one(DataTable)
-        table.add_column("Index", width=10)
-        table.add_column("Address", width=20)
-        table.add_column("Value", width=80)
-        table.zebra_stripes = True
-        # for n in range(20):
-        #    table.add_row(*[f"Cell ([b]{n}[/b], {col})" for col in range(2)])
+        address_table = self.query_one("#address_table")
+        address_table.add_column("Index", width=10)
+        address_table.add_column("Address", width=20)
+        address_table.add_column("Value", width=80)
+        address_table.zebra_stripes = True
+        module_table = self.query_one("#module_table")
+        module_table.add_column("Index", width=10)
+        module_table.add_column("Name", width=60)
+        module_table.add_column("Base", width=15)
+        module_table.add_column("Size", width=15)
+        module_table.add_column("Path", width=180)
+        module_table.zebra_stripes = True
         self.query_one("Welcome Button", Button).focus()
         SCAN.progress = self.query_one("#scan_progress")
         SCAN.add_note = self.add_note
-        SCAN.datatable = table
+        SCAN.datatable = address_table
 
     def action_screenshot(self, filename: str | None = None, path: str = "./") -> None:
         """Save an SVG "screenshot". This action will save an SVG file containing the current contents of the screen.

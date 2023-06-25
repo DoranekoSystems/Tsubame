@@ -75,3 +75,6 @@ class MEDITAPI:
 
     def memoryfilter(self, addresses):
         return self.frida_api.MemoryFilter(addresses)
+
+    def enummodules(self):
+        return self.frida_api.EnumModules()

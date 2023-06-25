@@ -196,7 +196,7 @@ LocationLink:hover {
     margin: 1 0;
 }
 
-DataTable {
+AddressView DataTable{
     height: 18;
 }
 
@@ -269,4 +269,17 @@ SearchForm Input{
 .nearby_input {
     width:15%;
     margin:0 0 0 0;
+}
+
+ModuleList DataTable {
+    height:40;
+}
+
+ModuleList #dump_input {
+    width:15%;
+    margin:0 0 0 0;
+}
+
+ModuleList #dump_input_horizontal{
+    height:5;
 }
