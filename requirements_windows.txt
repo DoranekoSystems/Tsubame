@@ -8,3 +8,4 @@ frida
 windows-curses
 sortedcontainers
 textual
+requests

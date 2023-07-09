@@ -8,3 +8,4 @@ frida
 applescript
 sortedcontainers
 textual
+requests

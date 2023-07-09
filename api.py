@@ -12,9 +12,10 @@ import hexdump
 import lz4.block
 from define import OS, MODE
 from colorama import Fore, Back, Style
+import requests
 
 
-class MEDITAPI:
+class FRIDA:
     def __init__(self, frida_api, config):
         self.frida_api = frida_api
         self.config = config
@@ -81,3 +82,91 @@ class MEDITAPI:
 
     def enumranges(self):
         return self.frida_api.EnumRanges()
+
+
+class MEMORY_SERVER(FRIDA):
+    def __init__(self, frida_api, config):
+        super().__init__(frida_api, config)
+        self.base_url = "http://" + config["ipconfig"]["memory_server_ip"]
+        self.frida_api = frida_api
+        self.pid = self.frida_api.GetInfo()["pid"]
+        self.openprocess(self.pid)
+
+    def openprocess(self, pid):
+        open_process_url = f"{self.base_url}/openprocess"
+        open_process_payload = {"pid": pid}
+        open_process_response = requests.post(
+            open_process_url, json=open_process_payload, proxies={}
+        )
+
+        if open_process_response.status_code == 200:
+            print(f"Process {pid} opened successfully")
+            return True
+        else:
+            print(
+                f"Failed to open process {pid}:{open_process_response.content.decode()}"
+            )
+            return False
+
+    def readprocessmemory(self, address, size):
+        read_memory_url = f"{self.base_url}/readmemory"
+        read_memory_payload = {"address": address, "size": size}
+
+        start = time.time()
+        read_memory_response = requests.post(read_memory_url, json=read_memory_payload)
+        end = time.time()
+        network_time = end - start
+
+        if read_memory_response.status_code == 200:
+            result = read_memory_response.content
+            return result
+        else:
+            print(f"Memory read failed:{read_memory_response.content.decode()}")
+            return False
+
+    def memoryscan(self, pattern, address_ranges, is_regex=False, return_as_json=False):
+        memory_scan_url = f"{self.base_url}/memoryscan"
+        memory_scan_payload = {
+            "pattern": pattern,
+            "address_ranges": address_ranges,
+            "is_regex": is_regex,
+            "return_as_json": return_as_json,
+        }
+
+        start = time.time()
+        memory_scan_response = requests.post(memory_scan_url, json=memory_scan_payload)
+        end = time.time()
+        network_time = end - start
+
+        if memory_scan_response.status_code == 200:
+            result = memory_scan_response.json()
+            print(f"Pattern found {result['found']} times")
+            print(f"Network time: {network_time}")
+            return result
+        else:
+            print(f"Memory scan failed:{memory_scan_response.content.decode()}")
+            return False
+
+    def memoryfilter(self, pattern, is_regex=False, return_as_json=False):
+        memory_filter_url = f"{self.base_url}/memoryfilter"
+        memory_filter_payload = {
+            "pattern": pattern,
+            "is_regex": is_regex,
+            "return_as_json": return_as_json,
+        }
+
+        start = time.time()
+        memory_filter_response = requests.post(
+            memory_filter_url, json=memory_filter_payload
+        )
+        end = time.time()
+        network_time = end - start
+
+        if memory_filter_response.status_code == 200:
+            result = memory_filter_response.json()
+            print(f"Pattern found {result['found']} times")
+            print(f"Network time: {network_time}")
+            return result
+        else:
+            print(f"Memory filter failed:{memory_filter_response.content.decode()}")
+            return False

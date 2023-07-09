@@ -196,14 +196,17 @@ rpc.exports = {
   writeprocessmemory: function (address, buffer) {
     try {
       if (ptr(address).isNull() == false) {
-        Memory.protect(ptr(address), buffer.length, 'rwx');
-        return Memory.writeByteArray(ptr(address), buffer, buffer.length);
+        if (Process.platform != 'darwin') {
+          Memory.protect(ptr(address), buffer.length, 'rwx');
+        }
+        Memory.writeByteArray(ptr(address), buffer, buffer.length);
+        return true;
       } else {
         return false;
       }
     } catch (e) {
       console.log(e);
-      return false;
+      return e;
     }
   },
   virtualqueryexfull: function (protect) {
@@ -294,10 +297,10 @@ rpc.exports = {
       return false;
     }
   },
-  enummodules:function(){
+  enummodules: function () {
     return Process.enumerateModules();
   },
-  enumranges:function(){
-    return Process.enumerateRanges("r--");
+  enumranges: function () {
+    return Process.enumerateRanges('r--');
   },
 };

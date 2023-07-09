@@ -105,7 +105,7 @@ def main(package, pid=None, run_mode="medit", memoryview_address=None):
         process_id = info["pid"]
 
     if run_mode == "medit":
-        tsubame.run_loop(process_id, config, frida_api, info)
+        tsubame.exec(process_id, config, frida_api, info)
     else:
         memory_view_mode(frida_api, memoryview_address)
 
