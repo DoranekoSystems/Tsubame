@@ -68,8 +68,8 @@ class FRIDA:
     def getmodule(self, name):
         return self.frida_api.GetModule(name)
 
-    def getsymbol(self, addresses):
-        return self.frida_api.GetSymbol(addresses)
+    def getsymbol(self, address):
+        return self.frida_api.GetSymbol(address)
 
     def memoryscan(self, start, size, bytecode):
         return self.frida_api.MemoryScan(start, size, bytecode)

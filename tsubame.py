@@ -37,6 +37,13 @@ import platform
 import os
 import subprocess
 import traceback
+import lldbauto
+from capstone import *
+from capstone.arm64 import *
+from collections import Counter
+
+md = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+md.detail = True
 
 WELCOME_MD = """
 
@@ -272,6 +279,29 @@ class AddressView(Container):
             yield Button(
                 "Watch", variant="primary", name="watch", classes="watch_button"
             )
+        yield Static("Watch Point", classes="label")
+        with Horizontal(id="watchpoint_horizontal"):
+            yield Input(
+                placeholder="Input Index or Address(hex)", id="watch_point_input"
+            )
+            yield Button(
+                "Set WatchPoint",
+                variant="primary",
+                name="watch_point",
+                classes="watch_point_button",
+            )
+        with Vertical():
+            yield Static("WatchPoint Type", classes="label")
+            with Horizontal():
+                yield RadioButton("Read", False, id="r1", name="r1_r_radiobutton")
+                yield RadioButton("Write", False, id="r2", name="r2_w_radiobutton")
+                yield RadioButton("Access", True, id="r3", name="r3_a_radiobutton")
+            yield Static("WatchPoint Size", classes="label")
+            with Horizontal():
+                yield RadioButton("1", False, id="s1", name="s1_1_radiobutton")
+                yield RadioButton("2", False, id="s2", name="s2_2_radiobutton")
+                yield RadioButton("4", True, id="s3", name="s3_4_radiobutton")
+                yield RadioButton("8", False, id="s4", name="s4_8_radiobutton")
 
     def on_mount(self) -> None:
         self.set_interval(30 / 60, self.update_address_view).resume()
@@ -335,6 +365,81 @@ class AddressView(Container):
 
             t1 = threading.Thread(target=run, daemon=True)
             t1.start()
+        elif event.button.name == "watch_point":
+            global LLDB
+            if DEBUGSERVER_IP != "":
+                if self.query_one("#watch_point_input").value.lower().find("0x") == 0:
+                    address = int(self.query_one("#watch_point_input").value, 0)
+                else:
+                    index = int(self.query_one("#watch_point_input").value) - 1
+                    address = SCAN.address_list[index]["address"]
+                for i in range(3):
+                    if self.query_one(f"#r{i+1}").value:
+                        bptype = self.query_one(f"#r{i+1}").name.split("_")[1]
+                        break
+                for i in range(4):
+                    if self.query_one(f"#s{i+1}").value:
+                        bpsize = int(self.query_one(f"#s{i+1}").name.split("_")[1])
+                        break
+                target_ip = DEBUGSERVER_IP.split(":")[0]
+                target_port = int(DEBUGSERVER_IP.split(":")[1])
+                if LLDB == None:
+                    LLDB = lldbauto.LLDBAutomation(target_ip, target_port, CONFIG)
+                    result = LLDB.attach(PID)
+                    if result.decode()[0] == "T":
+                        t1 = threading.Thread(target=LLDB.debugger_thread, daemon=True)
+                        t1.start()
+                        t2 = threading.Thread(target=LLDB.interrupt_func, daemon=True)
+                        t2.start()
+                        LLDB.add_note = SCAN.add_note
+                    else:
+                        self.screen.query_one(TextLog).write("attach error")
+                        return
+                wp = {
+                    "address": address,
+                    "bpsize": int(bpsize),
+                    "type": bptype,
+                    "switch": True,
+                    "enabled": False,
+                }
+                if LLDB.set_wp_count == 4:
+                    LLDB.add_note("The maximum number of watchpoints is 4.")
+                else:
+                    LLDB.wp_info_list[LLDB.set_wp_count] = wp
+                    watchpoint = WatchPoint()
+                    self.screen.query_one("#watchpoint_view").mount(watchpoint)
+                    watchpoint.set_var(wp, LLDB.set_wp_count)
+                    LLDB.set_wp_count += 1
+
+    def on_radio_button_changed(self, event: RadioButton.Changed) -> None:
+        t = event.radio_button.name[0]
+        index = int(event.radio_button.name.split("_")[0][1:])
+        if t == "r":
+            if self.query_one(f"#r{index}").value:
+                for i in range(3):
+                    if (i + 1) != index:
+                        self.query_one(f"#r{i+1}").value = False
+            else:
+                flag = False
+                for i in range(3):
+                    if self.query_one(f"#r{i+1}").value:
+                        flag = True
+                        break
+                if not flag:
+                    self.query_one(f"#r{index}").value = True
+        elif t == "s":
+            if self.query_one(f"#s{index}").value:
+                for i in range(4):
+                    if (i + 1) != index:
+                        self.query_one(f"#s{i+1}").value = False
+            else:
+                flag = False
+                for i in range(4):
+                    if self.query_one(f"#s{i+1}").value:
+                        flag = True
+                        break
+                if not flag:
+                    self.query_one(f"#s{index}").value = True
 
 
 class ModuleList(Container):
@@ -415,6 +520,148 @@ class MemoryRegions(Container):
                 )
 
 
+class WatchPointView(Container):
+    def compose(self) -> ComposeResult:
+        yield Static("WatchPointView", classes="label")
+
+
+class WatchPoint(Container):
+    def compose(self) -> ComposeResult:
+        yield Static("WatchPoint", id="watchpoint_label", classes="label")
+        yield DataTable(id="watchpoint_table")
+        with Horizontal():
+            yield Button(
+                "Remove Watch",
+                variant="primary",
+                name="remove",
+                classes="remove_button",
+            )
+            yield Button(
+                "Disassemble", variant="primary", name="disasm", classes="disasm_button"
+            )
+            yield Button("Nop", variant="primary", name="nop", classes="nop_button")
+
+    def on_mount(self) -> None:
+        self.set_interval(2 / 60, self.update_time, pause=True).resume()
+        self.watchpoint_table = self.query_one(DataTable)
+        self.watchpoint_table.add_column("Index", width=10)
+        self.watchpoint_table.add_column("Count", width=10)
+        self.watchpoint_table.add_column("Address", width=25)
+        self.watchpoint_table.add_column("Symbol", width=25)
+        self.watchpoint_table.add_column("Opcode", width=30)
+        self.watchpoint_table.zebra_stripes = True
+        self.watchpoint_table.cursor_type = "row"
+        address = self.wp["address"]
+        bpsize = self.wp["bpsize"]
+        _type = self.wp["type"]
+        self.query_one("#watchpoint_label").update(
+            f"WatchPoint Address:{hex(address)} Type:{_type} Size:{bpsize}"
+        )
+
+    def set_var(self, wp, wp_index) -> None:
+        self.wp = wp
+        self.wp_index = wp_index
+        self.table_info = []
+
+    def update_time(self) -> None:
+        event_list = []
+        while not LLDB.debug_event[self.wp_index].empty():
+            event_list.append(LLDB.debug_event[self.wp_index].get())
+        filterd_event_list = [
+            event for event in event_list if event["address"] == self.wp["address"]
+        ]
+        pc_counts = Counter(event["register"][32] for event in filterd_event_list)
+        for pc, sum_count in pc_counts.items():
+            result = [
+                (index, x) for (index, x) in enumerate(self.table_info) if x["pc"] == pc
+            ]
+            if result != []:
+                index = result[0][0]
+                x = result[0][1]
+                count = x["count"]
+                self.watchpoint_table.update_cell_at((index, 1), count + sum_count)
+                self.table_info[index]["count"] += sum_count
+            else:
+                ret = MEMORY_API.readprocessmemory(pc, 64)
+                if ret != False:
+                    bytecode = ret
+                    for insn in md.disasm(bytecode, 0x1000):
+                        opcode = (
+                            insn.mnemonic
+                            + " "
+                            + insn.op_str.replace("[", "(").replace("]", ")")
+                        )
+                        break
+                else:
+                    opcode = "unknown"
+                symbol = MEMORY_API.getsymbol(pc)
+                self.watchpoint_table.add_row(
+                    *[len(self.table_info) + 1, sum_count, hex(pc), symbol, opcode]
+                )
+                self.table_info.append({"pc": pc, "count": sum_count})
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.screen.query_one(TextLog).write(event.button.name)
+        if event.button.name == "remove":
+            LLDB.set_wp_count -= 1
+            info = LLDB.wp_info_list[self.wp_index]
+            if info["switch"] == True and info["enabled"] == True:
+                info["switch"] = False
+            self.remove()
+        elif event.button.name == "disasm":
+            index = self.watchpoint_table.cursor_row
+            address = int(self.watchpoint_table.get_cell_at((index, 2)), 0)
+            self.screen.query_one(DisassembleView).disasm(address)
+            self.screen.query_one(DisassembleView).scroll_visible(
+                top=True, duration=0.2
+            )
+        elif event.button.name == "nop":
+            index = self.watchpoint_table.cursor_row
+            address = int(self.watchpoint_table.get_cell_at((index, 2)), 0)
+            mov_x0_x0 = b"\xe0\x03\x00\xaa"
+            MEMORY_API.writeprocessmemory(address, mov_x0_x0)
+
+
+class DisassembleView(Container):
+    def compose(self) -> ComposeResult:
+        yield Static("Disassemble", id="disassemble_label", classes="label")
+        yield DataTable(id="disassemble_table")
+
+    def on_mount(self) -> None:
+        self.disassemble_table = self.query_one(DataTable)
+        self.disassemble_table.add_column("Address", width=15)
+        self.disassemble_table.add_column("Symbol", width=20)
+        self.disassemble_table.add_column("Bytes", width=20)
+        self.disassemble_table.add_column("Opcode", width=40)
+        self.disassemble_table.zebra_stripes = True
+        self.disassemble_table.cursor_type = "row"
+
+    def disasm(self, address) -> None:
+        self.disassemble_table.clear()
+        ret = MEMORY_API.readprocessmemory(address, 1024)
+        if ret != False:
+            bytecode = ret
+            address_list = []
+            for i, insn in enumerate(md.disasm(bytecode, address)):
+                if i == 0:
+                    symbol = MEMORY_API.getsymbol(insn.address)
+                else:
+                    symbol = ""
+                opcode = (
+                    insn.mnemonic
+                    + " "
+                    + insn.op_str.replace("[", "(").replace("]", ")")
+                )
+                self.disassemble_table.add_row(
+                    *[
+                        hex(insn.address),
+                        symbol,
+                        " ".join("{:02x}".format(x) for x in insn.bytes),
+                        opcode,
+                    ]
+                )
+
+
 class Window(Container):
     pass
 
@@ -464,6 +711,8 @@ class TsubameApp(App[None]):
                     LocationLink("Memory Editor", ".location-editor"),
                     LocationLink("Module List", ".location-module-list"),
                     LocationLink("Memory Regions", ".location-memory-regions"),
+                    LocationLink("Watch Point", ".location-watchpoint"),
+                    LocationLink("Disassemble View", ".location-disassemble"),
                 ),
                 AboveFold(Welcome(), classes="location-top"),
                 Column(
@@ -487,6 +736,20 @@ class TsubameApp(App[None]):
                         MemoryRegions(),
                     ),
                     classes="location-memory-regions",
+                ),
+                Column(
+                    Section(
+                        SectionTitle("Watch Point"),
+                        WatchPointView(id="watchpoint_view"),
+                    ),
+                    classes="location-watchpoint",
+                ),
+                Column(
+                    Section(
+                        SectionTitle("Disassemble View"),
+                        DisassembleView(id="disassemble_view"),
+                    ),
+                    classes="location-disassemble",
                 ),
             ),
         )
@@ -552,6 +815,9 @@ PID = None
 MEMORY_API = None
 MEMORY_SERVER = None
 SCAN = None
+LLDB = None
+DEBUGSERVER_IP = None
+CONFIG = None
 INFO = None
 
 
@@ -561,6 +827,8 @@ def exec(pid, config, frida_api, info):
     global MEMORY_SERVER
     global SCAN
     global INFO
+    global DEBUGSERVER_IP
+    global CONFIG
 
     if config["ipconfig"]["memory_server_ip"] == "":
         scan = scanner.Scanner(frida_api, config)
@@ -573,6 +841,7 @@ def exec(pid, config, frida_api, info):
     MEMORY_API = memory_api
     SCAN = scan
     INFO = info
-
+    CONFIG = config
+    DEBUGSERVER_IP = config["ipconfig"]["debugserver_ip"]
     app = TsubameApp()
     app.run()

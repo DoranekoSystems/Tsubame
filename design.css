@@ -230,14 +230,6 @@ Version {
     padding: 1;
 }
 
-AddressView {
-    height:30
-}
-
-AddressView Input{
-    width:30%;
-}
-
 SearchForm{
     height:25;
 }
@@ -271,6 +263,18 @@ SearchForm Input{
     margin:0 0 0 0;
 }
 
+AddressView {
+    height:40;
+}
+
+AddressView Input{
+    width:30%;
+}
+
+AddressView #watchpoint_horizontal{
+    height:3;
+}
+
 ModuleList DataTable {
     height:40;
 }
@@ -286,4 +290,18 @@ ModuleList #dump_input_horizontal{
 
 MemoryRegions DataTable {
     height:40;
+}
+
+WatchPoint {
+    height:16;
+}
+WatchPoint DataTable{
+    height:12;
+}
+WatchPoint Button{
+    margin: 0 2 0 0;
+}
+
+DisassembleView DataTable{
+    height:20;
 }

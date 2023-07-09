@@ -9,3 +9,4 @@ applescript
 sortedcontainers
 textual
 requests
+capstone

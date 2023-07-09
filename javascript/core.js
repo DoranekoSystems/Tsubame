@@ -274,19 +274,16 @@ rpc.exports = {
     if (filterd.length == 0) return null;
     return filterd;
   },
-  getsymbol: function (addresses) {
-    var symbolinfo = [];
-    for (var i = 0; i < addresses.length; i++) {
-      var modulename = DebugSymbol.fromAddress(ptr(addresses[i])).moduleName;
-      var address_str = DebugSymbol.fromAddress(ptr(addresses[i])).address;
-      if (modulename == null) {
-        symbolinfo.push(address_str);
-      } else {
-        var base = Process.findModuleByName(modulename).base;
-        symbolinfo.push(`${modulename}!${(addresses[i] - base).toString(16)}`);
-      }
+  getsymbol: function (address) {
+    var symbol = DebugSymbol.fromAddress(ptr(address));
+    var modulename = symbol.moduleName;
+    var address_str = symbol.address;
+    if (modulename == null) {
+      return address_str;
+    } else {
+      var base = Process.findModuleByName(modulename).base;
+      return `${modulename}!${(address - base).toString(16)}`;
     }
-    return symbolinfo;
   },
   getmodule: function (name) {
     try {
