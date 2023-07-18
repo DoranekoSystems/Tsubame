@@ -7,6 +7,6 @@ InquirerPy
 frida
 windows-curses
 sortedcontainers
-textual
+textual==0.30.0
 requests
 capstone

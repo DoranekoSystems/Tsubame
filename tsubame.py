@@ -34,6 +34,7 @@ import util
 import scanner
 import api
 import platform
+import re
 import os
 import subprocess
 import traceback
@@ -147,7 +148,7 @@ class SearchForm(Container):
         yield Static("Scan Value", classes="label")
         yield Input(placeholder="Input Scan Value", id="scan_value_input")
         yield Static()
-        with Horizontal():
+        with Horizontal(classes="scansetting_horizontal"):
             yield Button("Find", variant="primary", name="find", classes="scan_button")
             yield Button(
                 "Filter", variant="primary", name="filter", classes="scan_button"
@@ -165,7 +166,7 @@ class SearchForm(Container):
                 id="nearby_front_value_input",
                 classes="nearby_input",
             )
-        with Horizontal():
+        with Horizontal(classes="scanresult_horizontal"):
             yield Static("0", id="scan_progress")
             yield Static("", id="scan_founds")
         yield Static("Scan Type", classes="label")
@@ -190,7 +191,7 @@ class SearchForm(Container):
                 yield RadioButton(" regex", value=False, id="r14", name="r14_regex")
 
         yield Static("Scan Memory Protection", classes="label")
-        with Horizontal(classes="checkbox_horizontal"):
+        with Horizontal(classes="memory_protection_horizontal"):
             yield Checkbox("Read", True, id="read_checkbox")
             yield Checkbox("Write", True, id="write_checkbox")
             yield Checkbox("Execute", False, id="execute_checkbox")
@@ -267,20 +268,20 @@ class AddressView(Container):
         yield Static("Scan Result", classes="label")
         yield DataTable(id="address_table")
         yield Static("Patch", classes="label")
-        with Horizontal():
+        with Horizontal(classes="patch_horizontal"):
             yield Input(placeholder="Input Index", id="index_input")
             yield Input(placeholder="Input Value", id="value_input")
             yield Button(
                 "Patch", variant="primary", name="patch", classes="patch_button"
             )
         yield Static("Memory View", classes="label")
-        with Horizontal():
+        with Horizontal(classes="view_horizontal"):
             yield Input(placeholder="Input Index or Address(hex)", id="watch_input")
             yield Button(
                 "Watch", variant="primary", name="watch", classes="watch_button"
             )
         yield Static("Watch Point", classes="label")
-        with Horizontal(id="watchpoint_horizontal"):
+        with Horizontal(classes="watchpoint_horizontal", id="watchpoint_horizontal"):
             yield Input(
                 placeholder="Input Index or Address(hex)", id="watch_point_input"
             )
@@ -290,7 +291,7 @@ class AddressView(Container):
                 name="watch_point",
                 classes="watch_point_button",
             )
-        with Vertical():
+        with Vertical(classes="watchsetting_vertical"):
             yield Static("WatchPoint Type", classes="label")
             with Horizontal():
                 yield RadioButton("Read", False, id="r1", name="r1_r_radiobutton")
@@ -811,6 +812,16 @@ class TsubameApp(App[None]):
         self.screen.mount(Notification(message))
 
 
+def multiply_number(s, n):
+    num_str = re.search(r"%%(\d+)%%", s)
+    if num_str is None:
+        return False
+    multiplied_num = int(int(num_str.group(1)) * n / 1.5)
+    t = s.replace(num_str.group(0), str(multiplied_num))
+
+    return t
+
+
 PID = None
 MEMORY_API = None
 MEMORY_SERVER = None
@@ -843,5 +854,18 @@ def exec(pid, config, frida_api, info):
     INFO = info
     CONFIG = config
     DEBUGSERVER_IP = config["ipconfig"]["debugserver_ip"]
+
+    screen_ratio = config["general"]["screen_ratio"]
+    # convert css file
+    with open("design_orig.css", mode="r") as f:
+        lines = f.readlines()
+        with open("design.css", mode="w") as ff:
+            for line in lines:
+                t = multiply_number(line, screen_ratio)
+                if t != False:
+                    ff.write(t)
+                else:
+                    ff.write(line)
+
     app = TsubameApp()
     app.run()

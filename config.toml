@@ -3,6 +3,7 @@ target =  ""
 targetOS = "ios"
 mode =  "attach"
 binary_path = ""
+screen_ratio = 1
 
 [ipconfig]
 frida_server_ip =  ""
