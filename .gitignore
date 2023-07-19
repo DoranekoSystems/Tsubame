@@ -2,3 +2,4 @@ __pycache__
 memoryview/__pycache__
 dump/*
 .DS_Store
+design.css

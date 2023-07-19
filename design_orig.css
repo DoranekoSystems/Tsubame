@@ -133,7 +133,7 @@ Screen>Container {
 TextLog {
     background: $surface;
     color: $text;
-    height: 50vh;
+    height: %%80%%vh;
     dock: bottom;
     layer: notes;
     border-top: hkey $primary;
@@ -299,14 +299,24 @@ ModuleList DataTable {
     height:%%90%%vh;
 }
 
-ModuleList #dump_input {
+ModuleList .dump_input {
     width:15%;
     margin:0 0 0 0;
 }
 
-ModuleList #dump_input_horizontal{
+ModuleList .dump_input_horizontal{
     height:%%8%%vh;
 }
+
+ModuleList .filter_input {
+    width:25%;
+    margin:0 0 0 0;
+}
+
+ModuleList .filter_input_horizontal{
+    height:%%8%%vh;
+}
+
 
 MemoryRegions DataTable {
     height:%%90%%vh;

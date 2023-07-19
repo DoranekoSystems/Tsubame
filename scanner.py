@@ -295,7 +295,7 @@ class MSScanner(Scanner):
                 if start_address < end_address:
                     address_ranges.append([start_address, end_address])
             if _type == "aob":
-                bytecode = add_spaces(value.replace(" ", ""))
+                bytecode = value.replace(" ", "")
             elif _type == "regex":
                 bytecode = value
             else:

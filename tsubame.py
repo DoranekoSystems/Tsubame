@@ -211,41 +211,44 @@ class SearchForm(Container):
             )
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.name == "find":
-            if SCAN.scan_complete:
-                self.screen.query_one(TextLog).write("find start")
-                read = "r" if self.query_one("#read_checkbox").value else "-"
-                write = "w" if self.query_one("#write_checkbox").value else "-"
-                execute = "x" if self.query_one("#execute_checkbox").value else "-"
-                permission = read + write + execute
-                start_address = int(self.query_one("#start_input").value, 16)
-                end_address = int(self.query_one("#end_input").value, 16)
-                value = self.query_one("#scan_value_input").value
-                scan_type = ""
-                for i in range(14):
-                    if self.query_one(f"#r{i+1}").value:
-                        scan_type = self.query_one(f"#r{i+1}").name.split("_")[1]
-                SCAN.protect = permission
-                SCAN.start_address = start_address
-                SCAN.end_address = end_address
-                await SCAN.find(value, scan_type)
-        elif event.button.name == "filter":
-            if SCAN.scan_complete:
-                self.screen.query_one(TextLog).write("filter start")
-                value = self.query_one("#scan_value_input").value
-                await SCAN.filter(value)
-        elif event.button.name == "nearby":
-            if SCAN.scan_complete:
-                self.screen.query_one(TextLog).write("nearby start")
-                value = self.query_one("#scan_value_input").value
-                near_back_str = self.query_one("#nearby_back_value_input").value
-                near_front_str = self.query_one("#nearby_front_value_input").value
-                SCAN.near_back = int(near_back_str, 0)
-                SCAN.near_front = int(near_front_str, 0)
-                await SCAN.filter(value)
-        elif event.button.name == "range_reset":
-            self.query_one("#start_input").value = "0"
-            self.query_one("#end_input").value = "0x7FFFFFFFFFFFFFFF"
+        try:
+            if event.button.name == "find":
+                if SCAN.scan_complete:
+                    self.screen.query_one(TextLog).write("find start")
+                    read = "r" if self.query_one("#read_checkbox").value else "-"
+                    write = "w" if self.query_one("#write_checkbox").value else "-"
+                    execute = "x" if self.query_one("#execute_checkbox").value else "-"
+                    permission = read + write + execute
+                    start_address = int(self.query_one("#start_input").value, 16)
+                    end_address = int(self.query_one("#end_input").value, 16)
+                    value = self.query_one("#scan_value_input").value
+                    scan_type = ""
+                    for i in range(14):
+                        if self.query_one(f"#r{i+1}").value:
+                            scan_type = self.query_one(f"#r{i+1}").name.split("_")[1]
+                    SCAN.protect = permission
+                    SCAN.start_address = start_address
+                    SCAN.end_address = end_address
+                    await SCAN.find(value, scan_type)
+            elif event.button.name == "filter":
+                if SCAN.scan_complete:
+                    self.screen.query_one(TextLog).write("filter start")
+                    value = self.query_one("#scan_value_input").value
+                    await SCAN.filter(value)
+            elif event.button.name == "nearby":
+                if SCAN.scan_complete:
+                    self.screen.query_one(TextLog).write("nearby start")
+                    value = self.query_one("#scan_value_input").value
+                    near_back_str = self.query_one("#nearby_back_value_input").value
+                    near_front_str = self.query_one("#nearby_front_value_input").value
+                    SCAN.near_back = int(near_back_str, 0)
+                    SCAN.near_front = int(near_front_str, 0)
+                    await SCAN.filter(value)
+            elif event.button.name == "range_reset":
+                self.query_one("#start_input").value = "0"
+                self.query_one("#end_input").value = "0x7FFFFFFFFFFFFFFF"
+        except Exception as e:
+            self.app.show_note(traceback.format_exc())
 
     def on_radio_button_changed(self, event: RadioButton.Changed) -> None:
         index = int(event.radio_button.name.split("_")[0][1:])
@@ -328,89 +331,98 @@ class AddressView(Container):
                             break
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.screen.query_one(TextLog).write(event.button.name)
-        if event.button.name == "patch":
-            _type = SCAN.scan_type
-            index = int(self.query_one("#index_input").value) - 1
-            value = self.query_one("#value_input").value
-            sp = util.StructPack(value, _type)
-            bytecode = sp.pack()
-            ret = MEMORY_API.writeprocessmemory(
-                SCAN.address_list[index]["address"], bytecode
-            )
-            if ret != True:
-                self.screen.query_one(TextLog).write(f"patch error")
-        if event.button.name == "watch":
-            tmp = self.query_one("#watch_input").value
-            if tmp[0:2] == "0x":
-                address = int(tmp, 16)
-            else:
-                index = int(tmp) - 1
-                address = SCAN.address_list[index]["address"]
-
-            def run():
-                hostos = platform.system()
-                if hostos == "Darwin":
-                    from applescript import tell
-
-                    cwd = os.getcwd()
-                    pycmd = f"python3 main.py -p {PID} --memoryview {hex(address)}"
-                    tell.app("Terminal", 'do script "' + f"cd {cwd};{pycmd}" + '"')
-                elif hostos == "Windows":
-                    subprocess.call(
-                        f"python main.py -p {PID} --memoryview {hex(address)}",
-                        creationflags=subprocess.CREATE_NEW_CONSOLE,
-                    )
+        try:
+            if event.button.name == "patch":
+                _type = SCAN.scan_type
+                index = int(self.query_one("#index_input").value) - 1
+                value = self.query_one("#value_input").value
+                sp = util.StructPack(value, _type)
+                bytecode = sp.pack()
+                ret = MEMORY_API.writeprocessmemory(
+                    SCAN.address_list[index]["address"], bytecode
+                )
+                if ret != True:
+                    self.screen.query_one(TextLog).write(f"patch error")
+            if event.button.name == "watch":
+                tmp = self.query_one("#watch_input").value
+                if tmp[0:2] == "0x":
+                    address = int(tmp, 16)
                 else:
-                    print("Not Support")
-
-            t1 = threading.Thread(target=run, daemon=True)
-            t1.start()
-        elif event.button.name == "watch_point":
-            global LLDB
-            if DEBUGSERVER_IP != "":
-                if self.query_one("#watch_point_input").value.lower().find("0x") == 0:
-                    address = int(self.query_one("#watch_point_input").value, 0)
-                else:
-                    index = int(self.query_one("#watch_point_input").value) - 1
+                    index = int(tmp) - 1
                     address = SCAN.address_list[index]["address"]
-                for i in range(3):
-                    if self.query_one(f"#r{i+1}").value:
-                        bptype = self.query_one(f"#r{i+1}").name.split("_")[1]
-                        break
-                for i in range(4):
-                    if self.query_one(f"#s{i+1}").value:
-                        bpsize = int(self.query_one(f"#s{i+1}").name.split("_")[1])
-                        break
-                target_ip = DEBUGSERVER_IP.split(":")[0]
-                target_port = int(DEBUGSERVER_IP.split(":")[1])
-                if LLDB == None:
-                    LLDB = lldbauto.LLDBAutomation(target_ip, target_port, CONFIG)
-                    result = LLDB.attach(PID)
-                    if result.decode()[0] == "T":
-                        t1 = threading.Thread(target=LLDB.debugger_thread, daemon=True)
-                        t1.start()
-                        t2 = threading.Thread(target=LLDB.interrupt_func, daemon=True)
-                        t2.start()
-                        LLDB.add_note = SCAN.add_note
+
+                def run():
+                    hostos = platform.system()
+                    if hostos == "Darwin":
+                        from applescript import tell
+
+                        cwd = os.getcwd()
+                        pycmd = f"python3 main.py -p {PID} --memoryview {hex(address)}"
+                        tell.app("Terminal", 'do script "' + f"cd {cwd};{pycmd}" + '"')
+                    elif hostos == "Windows":
+                        subprocess.call(
+                            f"python main.py -p {PID} --memoryview {hex(address)}",
+                            creationflags=subprocess.CREATE_NEW_CONSOLE,
+                        )
                     else:
-                        self.screen.query_one(TextLog).write("attach error")
-                        return
-                wp = {
-                    "address": address,
-                    "bpsize": int(bpsize),
-                    "type": bptype,
-                    "switch": True,
-                    "enabled": False,
-                }
-                if LLDB.set_wp_count == 4:
-                    LLDB.add_note("The maximum number of watchpoints is 4.")
-                else:
-                    LLDB.wp_info_list[LLDB.set_wp_count] = wp
-                    watchpoint = WatchPoint()
-                    self.screen.query_one("#watchpoint_view").mount(watchpoint)
-                    watchpoint.set_var(wp, LLDB.set_wp_count)
-                    LLDB.set_wp_count += 1
+                        print("Not Support")
+
+                t1 = threading.Thread(target=run, daemon=True)
+                t1.start()
+            elif event.button.name == "watch_point":
+                global LLDB
+                if DEBUGSERVER_IP != "":
+                    if (
+                        self.query_one("#watch_point_input").value.lower().find("0x")
+                        == 0
+                    ):
+                        address = int(self.query_one("#watch_point_input").value, 0)
+                    else:
+                        index = int(self.query_one("#watch_point_input").value) - 1
+                        address = SCAN.address_list[index]["address"]
+                    for i in range(3):
+                        if self.query_one(f"#r{i+1}").value:
+                            bptype = self.query_one(f"#r{i+1}").name.split("_")[1]
+                            break
+                    for i in range(4):
+                        if self.query_one(f"#s{i+1}").value:
+                            bpsize = int(self.query_one(f"#s{i+1}").name.split("_")[1])
+                            break
+                    target_ip = DEBUGSERVER_IP.split(":")[0]
+                    target_port = int(DEBUGSERVER_IP.split(":")[1])
+                    if LLDB == None:
+                        LLDB = lldbauto.LLDBAutomation(target_ip, target_port, CONFIG)
+                        result = LLDB.attach(PID)
+                        if result.decode()[0] == "T":
+                            t1 = threading.Thread(
+                                target=LLDB.debugger_thread, daemon=True
+                            )
+                            t1.start()
+                            t2 = threading.Thread(
+                                target=LLDB.interrupt_func, daemon=True
+                            )
+                            t2.start()
+                            LLDB.add_note = SCAN.add_note
+                        else:
+                            self.screen.query_one(TextLog).write("attach error")
+                            return
+                    wp = {
+                        "address": address,
+                        "bpsize": int(bpsize),
+                        "type": bptype,
+                        "switch": True,
+                        "enabled": False,
+                    }
+                    if LLDB.set_wp_count == 4:
+                        LLDB.add_note("The maximum number of watchpoints is 4.")
+                    else:
+                        LLDB.wp_info_list[LLDB.set_wp_count] = wp
+                        watchpoint = WatchPoint()
+                        self.screen.query_one("#watchpoint_view").mount(watchpoint)
+                        watchpoint.set_var(wp, LLDB.set_wp_count)
+                        LLDB.set_wp_count += 1
+        except Exception as e:
+            self.app.show_note(traceback.format_exc())
 
     def on_radio_button_changed(self, event: RadioButton.Changed) -> None:
         t = event.radio_button.name[0]
@@ -442,53 +454,110 @@ class AddressView(Container):
                 if not flag:
                     self.query_one(f"#s{index}").value = True
 
+    def on_data_table_row_selected(self, event: DataTable.CellSelected) -> None:
+        index = event.data_table.cursor_row + 1
+        self.query_one("#index_input").value = str(index)
+        self.query_one("#watch_input").value = event.data_table.get_cell_at(
+            (index - 1, 1)
+        )
+        self.query_one("#watch_point_input").value = event.data_table.get_cell_at(
+            (index - 1, 1)
+        )
+
 
 class ModuleList(Container):
+    Modules = []
+
     def compose(self) -> ComposeResult:
         yield Button(
             "Update", variant="primary", name="update", classes="update_button"
         )
         yield Static("Modules", classes="label")
         yield DataTable(id="module_table")
-        with Horizontal(id="dump_input_horizontal"):
-            yield Input(placeholder="Input Index", id="dump_input")
+        with Horizontal(classes="dump_input_horizontal", id="dump_input_horizontal"):
+            yield Input(
+                placeholder="Input Index",
+                classes="dump_input",
+                id="dump_input",
+                name="dump_input",
+            )
             yield Button("Dump", variant="primary", name="dump", classes="dump_button")
+        with Horizontal(
+            classes="filter_input_horizontal", id="filter_input_horizontal"
+        ):
+            yield Input(
+                placeholder="Filter Library Name",
+                classes="filter_input",
+                id="filter_input",
+                name="filter_input",
+            )
         yield Static("", id="dump_result")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.screen.query_one(TextLog).write(event.button.name)
-        module_table = self.screen.query_one("#module_table")
-        if event.button.name == "update":
-            module_table.clear()
-            modules = MEMORY_API.enummodules()
-            for i, module in enumerate(modules):
-                module_table.add_row(
-                    *[
-                        i + 1,
-                        module["name"],
-                        module["base"],
-                        hex(module["size"]),
-                        module["path"],
-                    ]
-                )
-        elif event.button.name == "dump":
-            index = int(self.query_one("#dump_input").value) - 1
-            if module_table.is_valid_coordinate((index, 0)):
-                name = module_table.get_cell_at((index, 1))
-                base = int(module_table.get_cell_at((index, 2)), 0)
-                size = int(module_table.get_cell_at((index, 3)), 0)
-                ret = MEMORY_API.readprocessmemory(base, size)
-                if ret != False:
-                    bytecode = ret
-                    if not os.path.exists("dump"):
-                        os.mkdir("dump")
-                    with open(os.path.join("dump", name), mode="wb") as f:
-                        f.write(bytecode)
-                    self.query_one("#dump_result").update(f"{name}:dump success!")
+        try:
+            module_table = self.screen.query_one("#module_table")
+            if event.button.name == "update":
+                module_table.clear()
+                modules = MEMORY_API.enummodules()
+                self.Modules = modules
+                for i, module in enumerate(modules):
+                    module_table.add_row(
+                        *[
+                            i + 1,
+                            module["name"],
+                            module["base"],
+                            hex(module["size"]),
+                            module["path"],
+                        ]
+                    )
+            elif event.button.name == "dump":
+                index = int(self.query_one("#dump_input").value) - 1
+                if len(self.Modules) > index:
+                    name = self.Modules[index]["name"]
+                    base = int(self.Modules[index]["base"], 0)
+                    size = self.Modules[index]["size"]
+                    ret = MEMORY_API.readprocessmemory(base, size)
+                    if ret != False:
+                        bytecode = ret
+                        if not os.path.exists("dump"):
+                            os.mkdir("dump")
+                        with open(os.path.join("dump", name), mode="wb") as f:
+                            f.write(bytecode)
+                        self.query_one("#dump_result").update(f"{name}:dump success!")
+                    else:
+                        self.query_one("#dump_result").update(f"{name}:dump error!")
                 else:
-                    self.query_one("#dump_result").update(f"{name}:dump error!")
-            else:
-                self.query_one("#dump_result").update("invalid index")
+                    self.query_one("#dump_result").update("invalid index")
+        except Exception as e:
+            self.app.show_note(traceback.format_exc())
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        try:
+            if event.input.name == "filter_input":
+                module_table = self.screen.query_one("#module_table")
+                modulename = self.query_one("#filter_input").value
+                module_table.clear()
+                if self.Modules == None:
+                    return
+                modules = self.Modules
+                for i, module in enumerate(modules):
+                    if module["name"].find(modulename) != -1:
+                        module_table.add_row(
+                            *[
+                                i + 1,
+                                module["name"],
+                                module["base"],
+                                hex(module["size"]),
+                                module["path"],
+                            ]
+                        )
+        except Exception as e:
+            self.app.show_note(traceback.format_exc())
+
+    def on_data_table_row_selected(self, event: DataTable.CellSelected) -> None:
+        index = event.data_table.cursor_row
+        module_index = event.data_table.get_cell_at((index, 0))
+        self.query_one("#dump_input").value = str(module_index)
 
 
 class MemoryRegions(Container):
@@ -500,25 +569,28 @@ class MemoryRegions(Container):
         yield DataTable(id="regions_table")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.screen.query_one(TextLog).write(event.button.name)
-        regions_table = self.screen.query_one("#regions_table")
-        if event.button.name == "update":
-            regions_table.clear()
-            regions = MEMORY_API.enumranges()
-            for i, region in enumerate(regions):
-                if "file" in region:
-                    path = region["file"]["path"]
-                else:
-                    path = ""
-                regions_table.add_row(
-                    *[
-                        i + 1,
-                        region["base"],
-                        hex(region["size"]),
-                        region["protection"],
-                        path,
-                    ]
-                )
+        try:
+            self.screen.query_one(TextLog).write(event.button.name)
+            regions_table = self.screen.query_one("#regions_table")
+            if event.button.name == "update":
+                regions_table.clear()
+                regions = MEMORY_API.enumranges()
+                for i, region in enumerate(regions):
+                    if "file" in region:
+                        path = region["file"]["path"]
+                    else:
+                        path = ""
+                    regions_table.add_row(
+                        *[
+                            i + 1,
+                            region["base"],
+                            hex(region["size"]),
+                            region["protection"],
+                            path,
+                        ]
+                    )
+        except Exception as e:
+            self.app.show_note(traceback.format_exc())
 
 
 class WatchPointView(Container):
@@ -602,25 +674,28 @@ class WatchPoint(Container):
                 self.table_info.append({"pc": pc, "count": sum_count})
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.screen.query_one(TextLog).write(event.button.name)
-        if event.button.name == "remove":
-            LLDB.set_wp_count -= 1
-            info = LLDB.wp_info_list[self.wp_index]
-            if info["switch"] == True and info["enabled"] == True:
-                info["switch"] = False
-            self.remove()
-        elif event.button.name == "disasm":
-            index = self.watchpoint_table.cursor_row
-            address = int(self.watchpoint_table.get_cell_at((index, 2)), 0)
-            self.screen.query_one(DisassembleView).disasm(address)
-            self.screen.query_one(DisassembleView).scroll_visible(
-                top=True, duration=0.2
-            )
-        elif event.button.name == "nop":
-            index = self.watchpoint_table.cursor_row
-            address = int(self.watchpoint_table.get_cell_at((index, 2)), 0)
-            mov_x0_x0 = b"\xe0\x03\x00\xaa"
-            MEMORY_API.writeprocessmemory(address, mov_x0_x0)
+        try:
+            self.screen.query_one(TextLog).write(event.button.name)
+            if event.button.name == "remove":
+                LLDB.set_wp_count -= 1
+                info = LLDB.wp_info_list[self.wp_index]
+                if info["switch"] == True and info["enabled"] == True:
+                    info["switch"] = False
+                self.remove()
+            elif event.button.name == "disasm":
+                index = self.watchpoint_table.cursor_row
+                address = int(self.watchpoint_table.get_cell_at((index, 2)), 0)
+                self.screen.query_one(DisassembleView).disasm(address)
+                self.screen.query_one(DisassembleView).scroll_visible(
+                    top=True, duration=0.2
+                )
+            elif event.button.name == "nop":
+                index = self.watchpoint_table.cursor_row
+                address = int(self.watchpoint_table.get_cell_at((index, 2)), 0)
+                mov_x0_x0 = b"\xe0\x03\x00\xaa"
+                MEMORY_API.writeprocessmemory(address, mov_x0_x0)
+        except Exception as e:
+            self.app.show_note(traceback.format_exc())
 
 
 class DisassembleView(Container):
@@ -695,17 +770,17 @@ class TsubameApp(App[None]):
     def add_note(self, renderable: RenderableType) -> None:
         self.query_one(TextLog).write(renderable)
 
+    def show_note(self, renderable: RenderableType) -> None:
+        self.query_one(TextLog).clear()
+        self.query_one(TextLog).write(renderable)
+        self.query_one(TextLog).remove_class("-hidden")
+
     def compose(self) -> ComposeResult:
         example_css = Path(self.css_path[0]).read_text()
         yield Container(
             Sidebar(classes="-hidden"),
             Header(show_clock=False),
-            TextLog(
-                classes="-hidden",
-                wrap=False,
-                highlight=True,
-                markup=True,
-            ),
+            TextLog(classes="-hidden", wrap=False, highlight=True, markup=True),
             Body(
                 QuickAccess(
                     LocationLink("TOP", ".location-top"),
@@ -778,6 +853,7 @@ class TsubameApp(App[None]):
         address_table.add_column("Index", width=10)
         address_table.add_column("Address", width=20)
         address_table.add_column("Value", width=80)
+        address_table.cursor_type = "row"
         address_table.zebra_stripes = True
         module_table = self.query_one("#module_table")
         module_table.add_column("Index", width=10)
@@ -786,6 +862,7 @@ class TsubameApp(App[None]):
         module_table.add_column("Size", width=15)
         module_table.add_column("Path", width=180)
         module_table.zebra_stripes = True
+        module_table.cursor_type = "row"
         ranges_table = self.query_one("#regions_table")
         ranges_table.add_column("Index", width=10)
         ranges_table.add_column("Base", width=15)
