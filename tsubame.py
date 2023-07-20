@@ -29,6 +29,7 @@ from textual.widgets import (
     Checkbox,
     RadioButton,
     RadioSet,
+    Tabs,
 )
 import util
 import scanner
@@ -213,7 +214,7 @@ class SearchForm(Container):
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         try:
             if event.button.name == "find":
-                if SCAN.scan_complete:
+                if scanner.Scanner.scan_complete:
                     self.screen.query_one(TextLog).write("find start")
                     read = "r" if self.query_one("#read_checkbox").value else "-"
                     write = "w" if self.query_one("#write_checkbox").value else "-"
@@ -226,24 +227,24 @@ class SearchForm(Container):
                     for i in range(14):
                         if self.query_one(f"#r{i+1}").value:
                             scan_type = self.query_one(f"#r{i+1}").name.split("_")[1]
-                    SCAN.protect = permission
-                    SCAN.start_address = start_address
-                    SCAN.end_address = end_address
-                    await SCAN.find(value, scan_type)
+                    ACTIVE_SCAN.protect = permission
+                    ACTIVE_SCAN.start_address = start_address
+                    ACTIVE_SCAN.end_address = end_address
+                    await ACTIVE_SCAN.find(value, scan_type)
             elif event.button.name == "filter":
-                if SCAN.scan_complete:
+                if scanner.Scanner.scan_complete:
                     self.screen.query_one(TextLog).write("filter start")
                     value = self.query_one("#scan_value_input").value
-                    await SCAN.filter(value)
+                    await ACTIVE_SCAN.filter(value)
             elif event.button.name == "nearby":
-                if SCAN.scan_complete:
+                if scanner.Scanner.scan_complete:
                     self.screen.query_one(TextLog).write("nearby start")
                     value = self.query_one("#scan_value_input").value
                     near_back_str = self.query_one("#nearby_back_value_input").value
                     near_front_str = self.query_one("#nearby_front_value_input").value
-                    SCAN.near_back = int(near_back_str, 0)
-                    SCAN.near_front = int(near_front_str, 0)
-                    await SCAN.filter(value)
+                    ACTIVE_SCAN.near_back = int(near_back_str, 0)
+                    ACTIVE_SCAN.near_front = int(near_front_str, 0)
+                    await ACTIVE_SCAN.filter(value)
             elif event.button.name == "range_reset":
                 self.query_one("#start_input").value = "0"
                 self.query_one("#end_input").value = "0x7FFFFFFFFFFFFFFF"
@@ -268,6 +269,22 @@ class SearchForm(Container):
 
 class AddressView(Container):
     def compose(self) -> ComposeResult:
+        with Horizontal(classes="scantab_horizontal"):
+            yield Button(
+                "Add Scan Tab",
+                variant="primary",
+                name="add_tab",
+                classes="add_tab_button",
+            )
+            yield Button(
+                "Remove Scan Tab",
+                variant="primary",
+                name="remove_tab",
+                classes="remove_tab_button",
+            )
+        yield Tabs(
+            "Scan 1",
+        )
         yield Static("Scan Result", classes="label")
         yield DataTable(id="address_table")
         yield Static("Patch", classes="label")
@@ -309,19 +326,22 @@ class AddressView(Container):
 
     def on_mount(self) -> None:
         self.set_interval(30 / 60, self.update_address_view).resume()
+        self.total_tab_count = 1
+        self.active_tab_name = "Scan 1"
+        self.tab_info_dict = {}
 
     def update_address_view(self) -> None:
-        if SCAN.scan_complete:
+        if scanner.Scanner.scan_complete:
             datatable = self.query_one("#address_table")
             top_index = int(datatable.scroll_y)
-            for i in range(20):
+            for i in range(30):
                 if datatable.is_valid_row_index(top_index + i):
-                    address = SCAN.address_list[top_index + i]["address"]
-                    size = SCAN.address_list[top_index + i]["size"]
+                    address = ACTIVE_SCAN.address_list[top_index + i]["address"]
+                    size = ACTIVE_SCAN.address_list[top_index + i]["size"]
                     ret = MEMORY_API.readprocessmemory(address, size)
                     if ret:
                         bytecode = ret
-                        scan_type = SCAN.scan_type
+                        scan_type = ACTIVE_SCAN.scan_type
                         sup = util.StructUnpack(bytecode, scan_type)
                         value = sup.unpack()
                         try:
@@ -331,25 +351,27 @@ class AddressView(Container):
                             break
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        global ACTIVE_SCAN
         try:
             if event.button.name == "patch":
-                _type = SCAN.scan_type
+                _type = ACTIVE_SCAN.scan_type
                 index = int(self.query_one("#index_input").value) - 1
                 value = self.query_one("#value_input").value
                 sp = util.StructPack(value, _type)
                 bytecode = sp.pack()
                 ret = MEMORY_API.writeprocessmemory(
-                    SCAN.address_list[index]["address"], bytecode
+                    ACTIVE_SCAN.address_list[index]["address"],
+                    bytecode,
                 )
                 if ret != True:
                     self.screen.query_one(TextLog).write(f"patch error")
-            if event.button.name == "watch":
+            elif event.button.name == "watch":
                 tmp = self.query_one("#watch_input").value
                 if tmp[0:2] == "0x":
                     address = int(tmp, 16)
                 else:
                     index = int(tmp) - 1
-                    address = SCAN.address_list[index]["address"]
+                    address = ACTIVE_SCAN.address_list[index]["address"]
 
                 def run():
                     hostos = platform.system()
@@ -379,7 +401,7 @@ class AddressView(Container):
                         address = int(self.query_one("#watch_point_input").value, 0)
                     else:
                         index = int(self.query_one("#watch_point_input").value) - 1
-                        address = SCAN.address_list[index]["address"]
+                        address = ACTIVE_SCAN.address_list[index]["address"]
                     for i in range(3):
                         if self.query_one(f"#r{i+1}").value:
                             bptype = self.query_one(f"#r{i+1}").name.split("_")[1]
@@ -402,9 +424,9 @@ class AddressView(Container):
                                 target=LLDB.interrupt_func, daemon=True
                             )
                             t2.start()
-                            LLDB.add_note = SCAN.add_note
+                            LLDB.add_note = scanner.Scanner.add_note
                         else:
-                            self.screen.query_one(TextLog).write("attach error")
+                            self.app.add_note("attach error")
                             return
                     wp = {
                         "address": address,
@@ -414,13 +436,40 @@ class AddressView(Container):
                         "enabled": False,
                     }
                     if LLDB.set_wp_count == 4:
-                        LLDB.add_note("The maximum number of watchpoints is 4.")
+                        self.app.add_note("The maximum number of watchpoints is 4.")
                     else:
                         LLDB.wp_info_list[LLDB.set_wp_count] = wp
                         watchpoint = WatchPoint()
                         self.screen.query_one("#watchpoint_view").mount(watchpoint)
                         watchpoint.set_var(wp, LLDB.set_wp_count)
                         LLDB.set_wp_count += 1
+            elif event.button.name == "add_tab":
+                tabs = self.query_one(Tabs)
+                self.total_tab_count += 1
+                tabname = f"Scan {self.total_tab_count}"
+                if CONFIG["ipconfig"]["memory_server_ip"] == "":
+                    scan = scanner.Scanner(FRIDA_API, CONFIG)
+                else:
+                    scan = scanner.MSScanner(FRIDA_API, CONFIG)
+                SCAN_DICT[tabname] = scan
+                tabs.add_tab(tabname)
+                self.tab_info_dict[tabname] = {
+                    "scan_value": "",
+                    "nearby_back": "",
+                    "nearby_front": "",
+                    "scan_type": "int32",
+                    "range_start": "0",
+                    "range_end": "0x7FFFFFFFFFFFFFFF",
+                    "protect": "rw-",
+                }
+            elif event.button.name == "remove_tab":
+                tabs = self.query_one(Tabs)
+                active_tab = tabs.active_tab
+                if active_tab is not None:
+                    if tabs.tab_count > 1:
+                        SCAN_DICT.pop(self.active_tab_name)
+                        tabs.remove_tab(active_tab.id)
+                        self.tab_info_dict.pop(self.active_tab_name)
         except Exception as e:
             self.app.show_note(traceback.format_exc())
 
@@ -463,6 +512,96 @@ class AddressView(Container):
         self.query_one("#watch_point_input").value = event.data_table.get_cell_at(
             (index - 1, 1)
         )
+
+    def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
+        global ACTIVE_SCAN
+        if event.tab is None:
+            pass
+        else:
+            datatable = self.query_one("#address_table")
+            datatable.clear()
+            self.old_active_tab_name = self.active_tab_name
+            self.active_tab_name = event.tab.label_text
+            ACTIVE_SCAN = SCAN_DICT[self.active_tab_name]
+            for i, address in enumerate(ACTIVE_SCAN.address_list):
+                if i >= ACTIVE_SCAN.max_list_num:
+                    break
+                datatable.add_row(*[i + 1, hex(address["address"]), address["value"]])
+            searchform = self.app.query_one(SearchForm)
+            ### save old tab info
+            # scan value
+            _value = searchform.query_one(f"#scan_value_input").value
+            # nearby back
+            _nearby_back = searchform.query_one(f"#nearby_back_value_input").value
+            # nearby front
+            _nearby_front = searchform.query_one(f"#nearby_front_value_input").value
+            # scan type
+            for i in range(14):
+                if searchform.query_one(f"#r{i+1}").value:
+                    _scan_type = searchform.query_one(f"#r{i+1}").name.split("_")[1]
+            # search memory range
+            _range_start = searchform.query_one(f"#start_input").value
+            _range_end = searchform.query_one(f"#end_input").value
+            # protect
+            if searchform.query_one(f"#read_checkbox").value == True:
+                _r = "r"
+            else:
+                _r = "-"
+            if searchform.query_one(f"#write_checkbox").value == True:
+                _w = "w"
+            else:
+                _w = "-"
+            if searchform.query_one(f"#execute_checkbox").value == True:
+                _x = "x"
+            else:
+                _x = "-"
+            _protect = _r + _w + _x
+
+            self.tab_info_dict[self.old_active_tab_name] = {
+                "scan_value": _value,
+                "nearby_back": _nearby_back,
+                "nearby_front": _nearby_front,
+                "scan_type": _scan_type,
+                "range_start": _range_start,
+                "range_end": _range_end,
+                "protect": _protect,
+            }
+            # update new tab info
+            if self.active_tab_name in self.tab_info_dict:
+                # scan value
+                scan_value = self.tab_info_dict[self.active_tab_name]["scan_value"]
+                searchform.query_one(f"#scan_value_input").value = scan_value
+                # nearby back
+                nearby_back = self.tab_info_dict[self.active_tab_name]["nearby_back"]
+                searchform.query_one(f"#nearby_back_value_input").value = nearby_back
+                # nearby front
+                nearby_front = self.tab_info_dict[self.active_tab_name]["nearby_front"]
+                searchform.query_one(f"#nearby_front_value_input").value = nearby_front
+                # scan type
+                scan_type = self.tab_info_dict[self.active_tab_name]["scan_type"]
+                for i in range(14):
+                    if searchform.query_one(f"#r{i+1}").name.find(scan_type) != -1:
+                        searchform.query_one(f"#r{i+1}").value = True
+                        break
+                # search memory range
+                range_start = self.tab_info_dict[self.active_tab_name]["range_start"]
+                range_end = self.tab_info_dict[self.active_tab_name]["range_end"]
+                searchform.query_one(f"#start_input").value = range_start
+                searchform.query_one(f"#end_input").value = range_end
+                # protect
+                protect = self.tab_info_dict[self.active_tab_name]["protect"]
+                if protect.find("r") != -1:
+                    searchform.query_one(f"#read_checkbox").value = True
+                else:
+                    searchform.query_one(f"#read_checkbox").value = False
+                if protect.find("w") != -1:
+                    searchform.query_one(f"#write_checkbox").value = True
+                else:
+                    searchform.query_one(f"#write_checkbox").value = False
+                if protect.find("x") != -1:
+                    searchform.query_one(f"#execute_checkbox").value = True
+                else:
+                    searchform.query_one(f"#execute_checkbox").value = False
 
 
 class ModuleList(Container):
@@ -541,7 +680,7 @@ class ModuleList(Container):
                     return
                 modules = self.Modules
                 for i, module in enumerate(modules):
-                    if module["name"].find(modulename) != -1:
+                    if module["name"].lower().find(modulename.lower()) != -1:
                         module_table.add_row(
                             *[
                                 i + 1,
@@ -871,9 +1010,9 @@ class TsubameApp(App[None]):
         ranges_table.add_column("File", width=180)
         ranges_table.zebra_stripes = True
         self.query_one("Welcome Button", Button).focus()
-        SCAN.progress = self.query_one("#scan_progress")
-        SCAN.add_note = self.add_note
-        SCAN.datatable = address_table
+        scanner.Scanner.progress = self.query_one("#scan_progress")
+        scanner.Scanner.add_note = self.add_note
+        scanner.Scanner.datatable = address_table
 
     def action_screenshot(self, filename: str | None = None, path: str = "./") -> None:
         """Save an SVG "screenshot". This action will save an SVG file containing the current contents of the screen.
@@ -900,9 +1039,11 @@ def multiply_number(s, n):
 
 
 PID = None
+FRIDA_API = None
 MEMORY_API = None
 MEMORY_SERVER = None
-SCAN = None
+SCAN_DICT = {}
+ACTIVE_SCAN = None
 LLDB = None
 DEBUGSERVER_IP = None
 CONFIG = None
@@ -911,9 +1052,11 @@ INFO = None
 
 def exec(pid, config, frida_api, info):
     global PID
+    global FRIDA_API
     global MEMORY_API
     global MEMORY_SERVER
-    global SCAN
+    global ACTIVE_SCAN
+    global SCAN_DICT
     global INFO
     global DEBUGSERVER_IP
     global CONFIG
@@ -926,8 +1069,10 @@ def exec(pid, config, frida_api, info):
         memory_api = api.MEMORY_SERVER(frida_api, config)
         MEMORY_SERVER = api.MEMORY_SERVER(frida_api, config)
     PID = pid
+    FRIDA_API = frida_api
     MEMORY_API = memory_api
-    SCAN = scan
+    SCAN_DICT["Scan 1"] = scan
+    ACTIVE_SCAN = scan
     INFO = info
     CONFIG = config
     DEBUGSERVER_IP = config["ipconfig"]["debugserver_ip"]

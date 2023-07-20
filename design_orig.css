@@ -279,6 +279,13 @@ AddressView DataTable{
     height: %%50%%vh;
 }
 
+AddressView .scantab_horizontal{
+    height:%%8%%vh;
+}
+
+AddressView .scantab_horizontal Button{
+    margin:0 2 0 0;
+}
 AddressView .patch_horizontal{
     height:%%8%%vh;
 }

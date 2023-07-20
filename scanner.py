@@ -38,6 +38,11 @@ def NumbersWithinRange(items, lower, upper):
 
 
 class Scanner:
+    scan_complete = True
+    progress = None
+    add_note = None
+    datatable = None
+
     def __init__(self, frida_api, config):
         self.frida_api = frida_api
         self.frida = api.FRIDA(frida_api, config)
@@ -45,17 +50,13 @@ class Scanner:
         self.addresses = []
         self.address_list = []
         self.rpm_max_size = 524288
-        self.scan_type = ""
+        self.scan_type = "int32"
         self.scan_value = None
-        self.protect = "r--"
+        self.protect = "rw-"
         self.start_address = 0
         self.end_address = 0x7FFFFFFFFFFFFFFF
         self.near_front = 0
         self.near_back = 0
-        self.scan_complete = True
-        self.progress = None
-        self.add_note = None
-        self.datatable = None
         self.max_list_num = 10000
 
     async def find(self, value, _type):
