@@ -749,6 +749,12 @@ class WatchPoint(Container):
                 classes="remove_button",
             )
             yield Button(
+                "Stop Watch",
+                variant="primary",
+                name="toggle_watch",
+                classes="toggle_button",
+            )
+            yield Button(
                 "Disassemble", variant="primary", name="disasm", classes="disasm_button"
             )
             yield Button("Nop", variant="primary", name="nop", classes="nop_button")
@@ -821,6 +827,17 @@ class WatchPoint(Container):
                 if info["switch"] == True and info["enabled"] == True:
                     info["switch"] = False
                 self.remove()
+            elif event.button.name == "toggle_watch":
+                if event.button.label._text[0] == "Stop Watch":
+                    info = LLDB.wp_info_list[self.wp_index]
+                    if info["switch"] == True and info["enabled"] == True:
+                        info["switch"] = False
+                    event.button.label._text = ["Start Watch"]
+                else:
+                    info = LLDB.wp_info_list[self.wp_index]
+                    if info["switch"] == False and info["enabled"] == False:
+                        info["switch"] = True
+                    event.button.label._text = ["Stop Watch"]
             elif event.button.name == "disasm":
                 index = self.watchpoint_table.cursor_row
                 address = int(self.watchpoint_table.get_cell_at((index, 2)), 0)
