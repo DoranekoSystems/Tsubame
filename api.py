@@ -124,13 +124,16 @@ class MEMORY_SERVER(FRIDA):
             print(f"Memory read failed:{read_memory_response.content.decode()}")
             return False
 
-    def memoryscan(self, pattern, address_ranges, is_regex=False, return_as_json=False):
+    def memoryscan(
+        self, pattern, address_ranges, scan_id, is_regex=False, return_as_json=False
+    ):
         memory_scan_url = f"{self.base_url}/memoryscan"
         memory_scan_payload = {
             "pattern": pattern,
             "address_ranges": address_ranges,
             "is_regex": is_regex,
             "return_as_json": return_as_json,
+            "scan_id": scan_id,
         }
 
         start = time.time()
@@ -147,12 +150,13 @@ class MEMORY_SERVER(FRIDA):
             print(f"Memory scan failed:{memory_scan_response.content.decode()}")
             return False
 
-    def memoryfilter(self, pattern, is_regex=False, return_as_json=False):
+    def memoryfilter(self, pattern, scan_id, is_regex=False, return_as_json=False):
         memory_filter_url = f"{self.base_url}/memoryfilter"
         memory_filter_payload = {
             "pattern": pattern,
             "is_regex": is_regex,
             "return_as_json": return_as_json,
+            "scan_id": scan_id,
         }
 
         start = time.time()

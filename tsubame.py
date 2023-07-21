@@ -450,7 +450,7 @@ class AddressView(Container):
                 if CONFIG["ipconfig"]["memory_server_ip"] == "":
                     scan = scanner.Scanner(FRIDA_API, CONFIG)
                 else:
-                    scan = scanner.MSScanner(FRIDA_API, CONFIG)
+                    scan = scanner.MSScanner(FRIDA_API, CONFIG, tabname)
                 SCAN_DICT[tabname] = scan
                 tabs.add_tab(tabname)
                 self.tab_info_dict[tabname] = {
@@ -1082,9 +1082,9 @@ def exec(pid, config, frida_api, info):
         scan = scanner.Scanner(frida_api, config)
         memory_api = api.FRIDA(frida_api, config)
     else:
-        scan = scanner.MSScanner(frida_api, config)
+        scan = scanner.MSScanner(frida_api, config, "Scan 1")
         memory_api = api.MEMORY_SERVER(frida_api, config)
-        MEMORY_SERVER = api.MEMORY_SERVER(frida_api, config)
+        MEMORY_SERVER = memory_api
     PID = pid
     FRIDA_API = frida_api
     MEMORY_API = memory_api

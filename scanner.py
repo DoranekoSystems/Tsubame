@@ -272,11 +272,12 @@ class Scanner:
 
 
 class MSScanner(Scanner):
-    def __init__(self, frida_api, config):
+    def __init__(self, frida_api, config, scan_id):
         super().__init__(frida_api, config)
         self.custom_read_memory = config["extended_function"]["custom_read_memory"]
         self.base_url = config["ipconfig"]["memory_server_ip"]
         self.memory_server = api.MEMORY_SERVER(frida_api, config)
+        self.scan_id = scan_id
 
     async def find(self, value, _type):
         try:
@@ -306,7 +307,7 @@ class MSScanner(Scanner):
             if _type == "regex":
                 is_regex = True
             result = self.memory_server.memoryscan(
-                bytecode, address_ranges, is_regex, True
+                bytecode, address_ranges, self.scan_id, is_regex, True
             )
             if result != False:
                 for r in result["matched_addresses"]:
@@ -318,6 +319,59 @@ class MSScanner(Scanner):
                         sz = int(len(r["value"]) / 2)
                         byte_data = bytes.fromhex(r["value"])
                         v = util.StructUnpack(byte_data, _type).unpack()
+                    self.addresses.append(ad)
+                    self.address_list.append({"address": ad, "size": sz, "value": v})
+            else:
+                pass
+            for i, address in enumerate(self.address_list):
+                if i >= self.max_list_num:
+                    break
+                self.datatable.add_row(
+                    *[i + 1, hex(address["address"]), address["value"]]
+                )
+            self.progress.update(f"complete => founds:{len(self.addresses)}")
+            self.scan_complete = True
+        except Exception as e:
+            self.scan_complete = True
+            self.progress.update(f"an error occured")
+            self.datatable.clear()
+            self.add_note(traceback.format_exc())
+
+    async def filter(self, value):
+        try:
+            if self.near_back != 0 or self.near_front != 0:
+                await super().filter(value)
+                return
+            else:
+                self.progress.update(f"filter start!")
+            await asyncio.sleep(0.05)
+            self.datatable.clear()
+
+            self.addresses = []
+            self.address_list = []
+            if self.scan_type == "aob":
+                bytecode = value.replace(" ", "")
+            elif self.scan_type == "regex":
+                bytecode = value
+            else:
+                sp = util.StructPack(value, self.scan_type)
+                bytecode = sp.pack().hex()
+            is_regex = False
+            if self.scan_type == "regex":
+                is_regex = True
+            result = self.memory_server.memoryfilter(
+                bytecode, self.scan_id, is_regex, True
+            )
+            if result != False:
+                for r in result["matched_addresses"]:
+                    ad = r["address"]
+                    if self.scan_type == "regex":
+                        v = bytes.fromhex(r["value"]).decode()
+                        sz = len(v)
+                    else:
+                        sz = int(len(r["value"]) / 2)
+                        byte_data = bytes.fromhex(r["value"])
+                        v = util.StructUnpack(byte_data, self.scan_type).unpack()
                     self.addresses.append(ad)
                     self.address_list.append({"address": ad, "size": sz, "value": v})
             else:
