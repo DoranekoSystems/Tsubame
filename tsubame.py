@@ -30,6 +30,8 @@ from textual.widgets import (
     RadioButton,
     RadioSet,
     Tabs,
+    ListView,
+    ListItem,
 )
 import util
 import scanner
@@ -168,29 +170,39 @@ class SearchForm(Container):
                 classes="nearby_input",
             )
         with Horizontal(classes="scanresult_horizontal"):
-            yield Static("0", id="scan_progress")
+            yield Static("", id="scan_progress")
             yield Static("", id="scan_founds")
-        yield Static("Scan Type", classes="label")
-        with Horizontal(classes="scantype_horizontal"):
+        with Horizontal(classes="scaninfo_horizontal"):
             with Vertical():
-                yield RadioButton("  int8", value=False, id="r1", name="r1_int8")
-                yield RadioButton(" int16", value=False, id="r2", name="r2_int16")
-                yield RadioButton(" int32", value=True, id="r3", name="r3_int32")
-                yield RadioButton(" int64", value=False, id="r4", name="r4_int64")
-            with Vertical():
-                yield RadioButton(" uint8", value=False, id="r5", name="r5_uint8")
-                yield RadioButton("uint16", value=False, id="r6", name="r6_uint16")
-                yield RadioButton("uint32", value=False, id="r7", name="r7_uint32")
-                yield RadioButton("uint64", value=False, id="r8", name="r8_uint64")
-            with Vertical():
-                yield RadioButton(" float", value=False, id="r9", name="r9_float")
-                yield RadioButton("double", value=False, id="r10", name="r10_double")
-                yield RadioButton("  utf8", value=False, id="r11", name="r11_utf8")
-                yield RadioButton(" utf16", value=False, id="r12", name="r12_utf16")
-            with Vertical():
-                yield RadioButton("   aob", value=False, id="r13", name="r13_aob")
-                yield RadioButton(" regex", value=False, id="r14", name="r14_regex")
-
+                yield Static("Scan Type", classes="label")
+                yield ListView(
+                    ListItem(Label("  int8"), id="_0", name="int8"),
+                    ListItem(Label(" int16"), id="_1", name="int16"),
+                    ListItem(Label(" int32"), id="_2", name="int32"),
+                    ListItem(Label(" int64"), id="_3", name="int64"),
+                    ListItem(Label(" uint8"), id="_4", name="uint8"),
+                    ListItem(Label("uint16"), id="_5", name="uint16"),
+                    ListItem(Label("uint32"), id="_6", name="uint32"),
+                    ListItem(Label("uint64"), id="_7", name="uint64"),
+                    ListItem(Label(" float"), id="_8", name="float"),
+                    ListItem(Label("double"), id="_9", name="double"),
+                    ListItem(Label(" utf-8"), id="_10", name="utf-8"),
+                    ListItem(Label("utf-16"), id="_11", name="utf-16"),
+                    ListItem(Label("   aob"), id="_12", name="aob"),
+                    ListItem(Label(" regex"), id="_13", name="regex"),
+                    initial_index=2,
+                    id="scan_type_listview",
+                )
+            with Vertical(classes="filtermethod_vertical"):
+                yield Static("Filter Method", classes="label")
+                yield ListView(
+                    ListItem(Label("    exact"), id="_0", name="exact"),
+                    ListItem(Label("  changed"), id="_1", name="changed"),
+                    ListItem(Label("unchanged"), id="_2", name="unchanged"),
+                    ListItem(Label("   bigger"), id="_3", name="bigger"),
+                    ListItem(Label("  smaller"), id="_4", name="smaller"),
+                    id="filter_method_listview",
+                )
         yield Static("Scan Memory Protection", classes="label")
         with Horizontal(classes="memory_protection_horizontal"):
             yield Checkbox("Read", True, id="read_checkbox")
@@ -224,9 +236,11 @@ class SearchForm(Container):
                     end_address = int(self.query_one("#end_input").value, 16)
                     value = self.query_one("#scan_value_input").value
                     scan_type = ""
-                    for i in range(14):
-                        if self.query_one(f"#r{i+1}").value:
-                            scan_type = self.query_one(f"#r{i+1}").name.split("_")[1]
+                    scan_type_listview = self.query_one(f"#scan_type_listview")
+                    scan_type_index = scan_type_listview.index
+                    scan_type = scan_type_listview.get_child_by_id(
+                        f"_{scan_type_index}"
+                    ).name
                     ACTIVE_SCAN.protect = permission
                     ACTIVE_SCAN.start_address = start_address
                     ACTIVE_SCAN.end_address = end_address
@@ -235,7 +249,12 @@ class SearchForm(Container):
                 if scanner.Scanner.scan_complete:
                     self.screen.query_one(TextLog).write("filter start")
                     value = self.query_one("#scan_value_input").value
-                    await ACTIVE_SCAN.filter(value)
+                    filter_method_listview = self.query_one(f"#filter_method_listview")
+                    filter_method_index = filter_method_listview.index
+                    filter_method = filter_method_listview.get_child_by_id(
+                        f"_{filter_method_index}"
+                    ).name
+                    await ACTIVE_SCAN.filter(value, filter_method)
             elif event.button.name == "nearby":
                 if scanner.Scanner.scan_complete:
                     self.screen.query_one(TextLog).write("nearby start")
@@ -457,7 +476,9 @@ class AddressView(Container):
                     "scan_value": "",
                     "nearby_back": "",
                     "nearby_front": "",
+                    "progress": "",
                     "scan_type": "int32",
+                    "filter_method": "exact",
                     "range_start": "0",
                     "range_end": "0x7FFFFFFFFFFFFFFF",
                     "protect": "rw-",
@@ -535,10 +556,18 @@ class AddressView(Container):
             _nearby_back = searchform.query_one(f"#nearby_back_value_input").value
             # nearby front
             _nearby_front = searchform.query_one(f"#nearby_front_value_input").value
+            # progress
+            _progress = searchform.query_one("#scan_progress").render()
             # scan type
-            for i in range(14):
-                if searchform.query_one(f"#r{i+1}").value:
-                    _scan_type = searchform.query_one(f"#r{i+1}").name.split("_")[1]
+            scan_type_listview = searchform.query_one(f"#scan_type_listview")
+            scan_type_index = scan_type_listview.index
+            _scan_type = scan_type_listview.get_child_by_id(f"_{scan_type_index}").name
+            # filter method
+            filter_method_listview = searchform.query_one(f"#filter_method_listview")
+            filter_method_index = filter_method_listview.index
+            _filter_method = filter_method_listview.get_child_by_id(
+                f"_{filter_method_index}"
+            ).name
             # search memory range
             _range_start = searchform.query_one(f"#start_input").value
             _range_end = searchform.query_one(f"#end_input").value
@@ -561,7 +590,9 @@ class AddressView(Container):
                 "scan_value": _value,
                 "nearby_back": _nearby_back,
                 "nearby_front": _nearby_front,
+                "progress": _progress,
                 "scan_type": _scan_type,
+                "filter_method": _filter_method,
                 "range_start": _range_start,
                 "range_end": _range_end,
                 "protect": _protect,
@@ -577,12 +608,29 @@ class AddressView(Container):
                 # nearby front
                 nearby_front = self.tab_info_dict[self.active_tab_name]["nearby_front"]
                 searchform.query_one(f"#nearby_front_value_input").value = nearby_front
+                # progress
+                progress = self.tab_info_dict[self.active_tab_name]["progress"]
+                searchform.query_one(f"#scan_progress").update(progress)
                 # scan type
                 scan_type = self.tab_info_dict[self.active_tab_name]["scan_type"]
+                scan_type_listview = searchform.query_one(f"#scan_type_listview")
                 for i in range(14):
-                    if searchform.query_one(f"#r{i+1}").name.find(scan_type) != -1:
-                        searchform.query_one(f"#r{i+1}").value = True
+                    if scan_type_listview.query_one(f"#_{i}").name == scan_type:
+                        index = i
                         break
+                scan_type_listview.index = index
+                # filter method
+                filter_method = self.tab_info_dict[self.active_tab_name][
+                    "filter_method"
+                ]
+                filter_method_listview = searchform.query_one(
+                    f"#filter_method_listview"
+                )
+                for i in range(14):
+                    if filter_method_listview.query_one(f"#_{i}").name == filter_method:
+                        index = i
+                        break
+                filter_method_listview.index = index
                 # search memory range
                 range_start = self.tab_info_dict[self.active_tab_name]["range_start"]
                 range_end = self.tab_info_dict[self.active_tab_name]["range_end"]

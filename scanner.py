@@ -303,11 +303,8 @@ class MSScanner(Scanner):
             else:
                 sp = util.StructPack(value, _type)
                 bytecode = sp.pack().hex()
-            is_regex = False
-            if _type == "regex":
-                is_regex = True
             result = self.memory_server.memoryscan(
-                bytecode, address_ranges, self.scan_id, is_regex, True
+                bytecode, address_ranges, self.scan_type, self.scan_id, True
             )
             if result != False:
                 for r in result["matched_addresses"]:
@@ -337,7 +334,7 @@ class MSScanner(Scanner):
             self.datatable.clear()
             self.add_note(traceback.format_exc())
 
-    async def filter(self, value):
+    async def filter(self, value, filter_method):
         try:
             if self.near_back != 0 or self.near_front != 0:
                 await super().filter(value)
@@ -356,11 +353,8 @@ class MSScanner(Scanner):
             else:
                 sp = util.StructPack(value, self.scan_type)
                 bytecode = sp.pack().hex()
-            is_regex = False
-            if self.scan_type == "regex":
-                is_regex = True
             result = self.memory_server.memoryfilter(
-                bytecode, self.scan_id, is_regex, True
+                bytecode, self.scan_type, self.scan_id, filter_method, True
             )
             if result != False:
                 for r in result["matched_addresses"]:
