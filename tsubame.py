@@ -199,8 +199,8 @@ class SearchForm(Container):
                     ListItem(Label("    exact"), id="_0", name="exact"),
                     ListItem(Label("  changed"), id="_1", name="changed"),
                     ListItem(Label("unchanged"), id="_2", name="unchanged"),
-                    ListItem(Label("   bigger"), id="_3", name="bigger"),
-                    ListItem(Label("  smaller"), id="_4", name="smaller"),
+                    ListItem(Label(" increase"), id="_3", name="bigger"),
+                    ListItem(Label(" decrease"), id="_4", name="smaller"),
                     id="filter_method_listview",
                 )
         yield Static("Scan Memory Protection", classes="label")
@@ -270,20 +270,44 @@ class SearchForm(Container):
         except Exception as e:
             self.app.show_note(traceback.format_exc())
 
-    def on_radio_button_changed(self, event: RadioButton.Changed) -> None:
-        index = int(event.radio_button.name.split("_")[0][1:])
-        if self.query_one(f"#r{index}").value:
-            for i in range(14):
-                if (i + 1) != index:
-                    self.query_one(f"#r{i+1}").value = False
-        else:
-            flag = False
-            for i in range(14):
-                if self.query_one(f"#r{i+1}").value:
-                    flag = True
-                    break
-            if not flag:
-                self.query_one(f"#r{index}").value = True
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        if event.list_view.id == "scan_type_listview":
+            index = event.list_view.index
+            name = event.list_view.query_one(f"#_{index}").name
+            filter_method_listview = self.query_one("#filter_method_listview")
+            if name in ["utf-8", "utf-16", "aob"]:
+                filter_method_listview.clear()
+                filter_method_listview.append(
+                    ListItem(Label("    exact"), id="_0", name="exact")
+                )
+                filter_method_listview.append(
+                    ListItem(Label("  changed"), id="_1", name="changed")
+                )
+                filter_method_listview.append(
+                    ListItem(Label("unchanged"), id="_2", name="unchanged")
+                )
+            elif name in ["regex"]:
+                filter_method_listview.clear()
+                filter_method_listview.append(
+                    ListItem(Label("    exact"), id="_0", name="exact")
+                )
+            else:
+                filter_method_listview.clear()
+                filter_method_listview.append(
+                    ListItem(Label("    exact"), id="_0", name="exact")
+                )
+                filter_method_listview.append(
+                    ListItem(Label("  changed"), id="_1", name="changed")
+                )
+                filter_method_listview.append(
+                    ListItem(Label("unchanged"), id="_2", name="unchanged")
+                )
+                filter_method_listview.append(
+                    ListItem(Label(" increase"), id="_3", name="bigger")
+                )
+                filter_method_listview.append(
+                    ListItem(Label(" decrease"), id="_4", name="smaller")
+                )
 
 
 class AddressView(Container):
@@ -626,7 +650,40 @@ class AddressView(Container):
                 filter_method_listview = searchform.query_one(
                     f"#filter_method_listview"
                 )
-                for i in range(14):
+                if scan_type in ["utf-8", "utf-16", "aob"]:
+                    filter_method_listview.clear()
+                    filter_method_listview.append(
+                        ListItem(Label("    exact"), id="_0", name="exact")
+                    )
+                    filter_method_listview.append(
+                        ListItem(Label("  changed"), id="_1", name="changed")
+                    )
+                    filter_method_listview.append(
+                        ListItem(Label("unchanged"), id="_2", name="unchanged")
+                    )
+                elif scan_type in ["regex"]:
+                    filter_method_listview.clear()
+                    filter_method_listview.append(
+                        ListItem(Label("    exact"), id="_0", name="exact")
+                    )
+                else:
+                    filter_method_listview.clear()
+                    filter_method_listview.append(
+                        ListItem(Label("    exact"), id="_0", name="exact")
+                    )
+                    filter_method_listview.append(
+                        ListItem(Label("  changed"), id="_1", name="changed")
+                    )
+                    filter_method_listview.append(
+                        ListItem(Label("unchanged"), id="_2", name="unchanged")
+                    )
+                    filter_method_listview.append(
+                        ListItem(Label(" increase"), id="_3", name="bigger")
+                    )
+                    filter_method_listview.append(
+                        ListItem(Label(" decrease"), id="_4", name="smaller")
+                    )
+                for i in range(5):
                     if filter_method_listview.query_one(f"#_{i}").name == filter_method:
                         index = i
                         break

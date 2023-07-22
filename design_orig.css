@@ -227,7 +227,7 @@ Version {
 }
 
 SearchForm{
-    height:%%80%%vh;
+    height:%%70%%vh;
 }
 
 SearchForm .scansetting_horizontal{
@@ -256,8 +256,9 @@ SearchForm Input{
 }
 
 SearchForm ListView{
-    width:50%;
+    width:12;
 }
+
 #scan_value_input{
     width:70%;
 }
