@@ -1,17 +1,7 @@
-from InquirerPy import prompt
-import os
-import sys
 import time
-import re
 import struct
-from threading import Thread
-import subprocess
-import platform
-from tqdm import tqdm
-import hexdump
 import lz4.block
-from define import OS, MODE
-from colorama import Fore, Back, Style
+from define import OS
 import requests
 
 
@@ -20,7 +10,7 @@ class FRIDA:
         self.frida_api = frida_api
         self.config = config
         self.custom_read_memory = config["extended_function"]["custom_read_memory"]
-        self.target_os = config["general"]["targetOS"]
+        self.target_os = config["general"]["target_os"]
 
     def decompress_lz4(self, data):
         # iOS
@@ -58,7 +48,7 @@ class FRIDA:
             ret = self.frida_api.ReadProcessMemory(address, size, False)
         else:
             ret = self.frida_api.ReadProcessMemory(address, size, True)
-            if ret != False:
+            if ret:
                 ret = self.decompress_lz4(ret)
         return ret
 
@@ -110,12 +100,9 @@ class MEMORY_SERVER(FRIDA):
 
     def readprocessmemory(self, address, size):
         read_memory_url = f"{self.base_url}/readmemory"
-        read_memory_payload = {"address": address, "size": size}
+        params = {"address": address, "size": size}
 
-        start = time.time()
-        read_memory_response = requests.post(read_memory_url, json=read_memory_payload)
-        end = time.time()
-        network_time = end - start
+        read_memory_response = requests.post(read_memory_url, params=params)
 
         if read_memory_response.status_code == 200:
             result = read_memory_response.content

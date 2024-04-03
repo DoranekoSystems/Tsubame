@@ -1,6 +1,6 @@
 [general]
 target =  ""
-targetOS = "ios"
+target_os = "ios"
 mode =  "attach"
 binary_path = ""
 screen_ratio = 1

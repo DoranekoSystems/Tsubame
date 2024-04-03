@@ -3,13 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import threading
 from importlib_metadata import version
-from rich import box
 from rich.console import RenderableType
-from rich.json import JSON
 from rich.markdown import Markdown
-from rich.pretty import Pretty
-from rich.syntax import Syntax
-from rich.table import Table
 from rich.text import Text
 
 from textual.app import App, ComposeResult
@@ -24,11 +19,10 @@ from textual.widgets import (
     Input,
     Static,
     Switch,
-    TextLog,
+    Log,
     Label,
     Checkbox,
     RadioButton,
-    RadioSet,
     Tabs,
     ListView,
     ListItem,
@@ -227,7 +221,7 @@ class SearchForm(Container):
         try:
             if event.button.name == "find":
                 if scanner.Scanner.scan_complete:
-                    self.screen.query_one(TextLog).write("find start")
+                    self.screen.query_one(Log).write("find start")
                     read = "r" if self.query_one("#read_checkbox").value else "-"
                     write = "w" if self.query_one("#write_checkbox").value else "-"
                     execute = "x" if self.query_one("#execute_checkbox").value else "-"
@@ -236,7 +230,7 @@ class SearchForm(Container):
                     end_address = int(self.query_one("#end_input").value, 16)
                     value = self.query_one("#scan_value_input").value
                     scan_type = ""
-                    scan_type_listview = self.query_one(f"#scan_type_listview")
+                    scan_type_listview = self.query_one("#scan_type_listview")
                     scan_type_index = scan_type_listview.index
                     scan_type = scan_type_listview.get_child_by_id(
                         f"_{scan_type_index}"
@@ -247,9 +241,9 @@ class SearchForm(Container):
                     await ACTIVE_SCAN.find(value, scan_type)
             elif event.button.name == "filter":
                 if scanner.Scanner.scan_complete:
-                    self.screen.query_one(TextLog).write("filter start")
+                    self.screen.query_one(Log).write("filter start")
                     value = self.query_one("#scan_value_input").value
-                    filter_method_listview = self.query_one(f"#filter_method_listview")
+                    filter_method_listview = self.query_one("#filter_method_listview")
                     filter_method_index = filter_method_listview.index
                     filter_method = filter_method_listview.get_child_by_id(
                         f"_{filter_method_index}"
@@ -257,7 +251,7 @@ class SearchForm(Container):
                     await ACTIVE_SCAN.filter(value, filter_method)
             elif event.button.name == "nearby":
                 if scanner.Scanner.scan_complete:
-                    self.screen.query_one(TextLog).write("nearby start")
+                    self.screen.query_one(Log).write("nearby start")
                     value = self.query_one("#scan_value_input").value
                     near_back_str = self.query_one("#nearby_back_value_input").value
                     near_front_str = self.query_one("#nearby_front_value_input").value
@@ -267,7 +261,7 @@ class SearchForm(Container):
             elif event.button.name == "range_reset":
                 self.query_one("#start_input").value = "0"
                 self.query_one("#end_input").value = "0x7FFFFFFFFFFFFFFF"
-        except Exception as e:
+        except Exception:
             self.app.show_note(traceback.format_exc())
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
@@ -390,7 +384,7 @@ class AddressView(Container):
                         try:
                             datatable.update_cell_at((top_index + i, 2), value)
                             datatable.refresh_row(top_index + i)
-                        except:
+                        except Exception:
                             break
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -406,8 +400,8 @@ class AddressView(Container):
                     ACTIVE_SCAN.address_list[index]["address"],
                     bytecode,
                 )
-                if ret != True:
-                    self.screen.query_one(TextLog).write(f"patch error")
+                if not ret:
+                    self.screen.query_one(Log).write("patch error")
             elif event.button.name == "watch":
                 tmp = self.query_one("#watch_input").value
                 if tmp[0:2] == "0x":
@@ -455,7 +449,7 @@ class AddressView(Container):
                             break
                     target_ip = DEBUGSERVER_IP.split(":")[0]
                     target_port = int(DEBUGSERVER_IP.split(":")[1])
-                    if LLDB == None:
+                    if LLDB is None:
                         LLDB = lldbauto.LLDBAutomation(target_ip, target_port, CONFIG)
                         result = LLDB.attach(PID)
                         if result.decode()[0] == "T":
@@ -515,7 +509,7 @@ class AddressView(Container):
                         SCAN_DICT.pop(self.active_tab_name)
                         tabs.remove_tab(active_tab.id)
                         self.tab_info_dict.pop(self.active_tab_name)
-        except Exception as e:
+        except Exception:
             self.app.show_note(traceback.format_exc())
 
     def on_radio_button_changed(self, event: RadioButton.Changed) -> None:
@@ -575,36 +569,36 @@ class AddressView(Container):
             searchform = self.app.query_one(SearchForm)
             ### save old tab info
             # scan value
-            _value = searchform.query_one(f"#scan_value_input").value
+            _value = searchform.query_one("#scan_value_input").value
             # nearby back
-            _nearby_back = searchform.query_one(f"#nearby_back_value_input").value
+            _nearby_back = searchform.query_one("#nearby_back_value_input").value
             # nearby front
-            _nearby_front = searchform.query_one(f"#nearby_front_value_input").value
+            _nearby_front = searchform.query_one("#nearby_front_value_input").value
             # progress
             _progress = searchform.query_one("#scan_progress").render()
             # scan type
-            scan_type_listview = searchform.query_one(f"#scan_type_listview")
+            scan_type_listview = searchform.query_one("#scan_type_listview")
             scan_type_index = scan_type_listview.index
             _scan_type = scan_type_listview.get_child_by_id(f"_{scan_type_index}").name
             # filter method
-            filter_method_listview = searchform.query_one(f"#filter_method_listview")
+            filter_method_listview = searchform.query_one("#filter_method_listview")
             filter_method_index = filter_method_listview.index
             _filter_method = filter_method_listview.get_child_by_id(
                 f"_{filter_method_index}"
             ).name
             # search memory range
-            _range_start = searchform.query_one(f"#start_input").value
-            _range_end = searchform.query_one(f"#end_input").value
+            _range_start = searchform.query_one("#start_input").value
+            _range_end = searchform.query_one("#end_input").value
             # protect
-            if searchform.query_one(f"#read_checkbox").value == True:
+            if searchform.query_one("#read_checkbox").value:
                 _r = "r"
             else:
                 _r = "-"
-            if searchform.query_one(f"#write_checkbox").value == True:
+            if searchform.query_one("#write_checkbox").value:
                 _w = "w"
             else:
                 _w = "-"
-            if searchform.query_one(f"#execute_checkbox").value == True:
+            if searchform.query_one("#execute_checkbox").value:
                 _x = "x"
             else:
                 _x = "-"
@@ -625,19 +619,19 @@ class AddressView(Container):
             if self.active_tab_name in self.tab_info_dict:
                 # scan value
                 scan_value = self.tab_info_dict[self.active_tab_name]["scan_value"]
-                searchform.query_one(f"#scan_value_input").value = scan_value
+                searchform.query_one("#scan_value_input").value = scan_value
                 # nearby back
                 nearby_back = self.tab_info_dict[self.active_tab_name]["nearby_back"]
-                searchform.query_one(f"#nearby_back_value_input").value = nearby_back
+                searchform.query_one("#nearby_back_value_input").value = nearby_back
                 # nearby front
                 nearby_front = self.tab_info_dict[self.active_tab_name]["nearby_front"]
-                searchform.query_one(f"#nearby_front_value_input").value = nearby_front
+                searchform.query_one("#nearby_front_value_input").value = nearby_front
                 # progress
                 progress = self.tab_info_dict[self.active_tab_name]["progress"]
-                searchform.query_one(f"#scan_progress").update(progress)
+                searchform.query_one("#scan_progress").update(progress)
                 # scan type
                 scan_type = self.tab_info_dict[self.active_tab_name]["scan_type"]
-                scan_type_listview = searchform.query_one(f"#scan_type_listview")
+                scan_type_listview = searchform.query_one("#scan_type_listview")
                 for i in range(14):
                     if scan_type_listview.query_one(f"#_{i}").name == scan_type:
                         index = i
@@ -647,9 +641,7 @@ class AddressView(Container):
                 filter_method = self.tab_info_dict[self.active_tab_name][
                     "filter_method"
                 ]
-                filter_method_listview = searchform.query_one(
-                    f"#filter_method_listview"
-                )
+                filter_method_listview = searchform.query_one("#filter_method_listview")
                 if scan_type in ["utf-8", "utf-16", "aob"]:
                     filter_method_listview.clear()
                     filter_method_listview.append(
@@ -691,22 +683,22 @@ class AddressView(Container):
                 # search memory range
                 range_start = self.tab_info_dict[self.active_tab_name]["range_start"]
                 range_end = self.tab_info_dict[self.active_tab_name]["range_end"]
-                searchform.query_one(f"#start_input").value = range_start
-                searchform.query_one(f"#end_input").value = range_end
+                searchform.query_one("#start_input").value = range_start
+                searchform.query_one("#end_input").value = range_end
                 # protect
                 protect = self.tab_info_dict[self.active_tab_name]["protect"]
                 if protect.find("r") != -1:
-                    searchform.query_one(f"#read_checkbox").value = True
+                    searchform.query_one("#read_checkbox").value = True
                 else:
-                    searchform.query_one(f"#read_checkbox").value = False
+                    searchform.query_one("#read_checkbox").value = False
                 if protect.find("w") != -1:
-                    searchform.query_one(f"#write_checkbox").value = True
+                    searchform.query_one("#write_checkbox").value = True
                 else:
-                    searchform.query_one(f"#write_checkbox").value = False
+                    searchform.query_one("#write_checkbox").value = False
                 if protect.find("x") != -1:
-                    searchform.query_one(f"#execute_checkbox").value = True
+                    searchform.query_one("#execute_checkbox").value = True
                 else:
-                    searchform.query_one(f"#execute_checkbox").value = False
+                    searchform.query_one("#execute_checkbox").value = False
 
 
 class ModuleList(Container):
@@ -761,7 +753,7 @@ class ModuleList(Container):
                     base = int(self.Modules[index]["base"], 0)
                     size = self.Modules[index]["size"]
                     ret = MEMORY_API.readprocessmemory(base, size)
-                    if ret != False:
+                    if ret:
                         bytecode = ret
                         if not os.path.exists("dump"):
                             os.mkdir("dump")
@@ -772,7 +764,7 @@ class ModuleList(Container):
                         self.query_one("#dump_result").update(f"{name}:dump error!")
                 else:
                     self.query_one("#dump_result").update("invalid index")
-        except Exception as e:
+        except Exception:
             self.app.show_note(traceback.format_exc())
 
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -781,7 +773,7 @@ class ModuleList(Container):
                 module_table = self.screen.query_one("#module_table")
                 modulename = self.query_one("#filter_input").value
                 module_table.clear()
-                if self.Modules == None:
+                if self.Modules is None:
                     return
                 modules = self.Modules
                 for i, module in enumerate(modules):
@@ -795,7 +787,7 @@ class ModuleList(Container):
                                 module["path"],
                             ]
                         )
-        except Exception as e:
+        except Exception:
             self.app.show_note(traceback.format_exc())
 
     def on_data_table_row_selected(self, event: DataTable.CellSelected) -> None:
@@ -814,7 +806,7 @@ class MemoryRegions(Container):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         try:
-            self.screen.query_one(TextLog).write(event.button.name)
+            self.screen.query_one(Log).write(event.button.name)
             regions_table = self.screen.query_one("#regions_table")
             if event.button.name == "update":
                 regions_table.clear()
@@ -833,7 +825,7 @@ class MemoryRegions(Container):
                             path,
                         ]
                     )
-        except Exception as e:
+        except Exception:
             self.app.show_note(traceback.format_exc())
 
 
@@ -906,7 +898,7 @@ class WatchPoint(Container):
                 self.table_info[index]["count"] += sum_count
             else:
                 ret = MEMORY_API.readprocessmemory(pc, 64)
-                if ret != False:
+                if ret:
                     bytecode = ret
                     for insn in md.disasm(bytecode, 0x1000):
                         opcode = (
@@ -925,22 +917,22 @@ class WatchPoint(Container):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         try:
-            self.screen.query_one(TextLog).write(event.button.name)
+            self.screen.query_one(Log).write(event.button.name)
             if event.button.name == "remove":
                 LLDB.set_wp_count -= 1
                 info = LLDB.wp_info_list[self.wp_index]
-                if info["switch"] == True and info["enabled"] == True:
+                if info["switch"] and info["enabled"]:
                     info["switch"] = False
                 self.remove()
             elif event.button.name == "toggle_watch":
                 if event.button.label._text[0] == "Stop Watch":
                     info = LLDB.wp_info_list[self.wp_index]
-                    if info["switch"] == True and info["enabled"] == True:
+                    if info["switch"] and info["enabled"]:
                         info["switch"] = False
                     event.button.label._text = ["Start Watch"]
                 else:
                     info = LLDB.wp_info_list[self.wp_index]
-                    if info["switch"] == False and info["enabled"] == False:
+                    if not info["switch"] and not info["enabled"]:
                         info["switch"] = True
                     event.button.label._text = ["Stop Watch"]
             elif event.button.name == "disasm":
@@ -955,7 +947,7 @@ class WatchPoint(Container):
                 address = int(self.watchpoint_table.get_cell_at((index, 2)), 0)
                 mov_x0_x0 = b"\xe0\x03\x00\xaa"
                 MEMORY_API.writeprocessmemory(address, mov_x0_x0)
-        except Exception as e:
+        except Exception:
             self.app.show_note(traceback.format_exc())
 
 
@@ -976,9 +968,9 @@ class DisassembleView(Container):
     def disasm(self, address) -> None:
         self.disassemble_table.clear()
         ret = MEMORY_API.readprocessmemory(address, 1024)
-        if ret != False:
+        if ret:
             bytecode = ret
-            address_list = []
+            _address_list = []
             for i, insn in enumerate(md.disasm(bytecode, address)):
                 if i == 0:
                     symbol = MEMORY_API.getsymbol(insn.address)
@@ -1022,26 +1014,26 @@ class TsubameApp(App[None]):
         ("ctrl+b", "toggle_sidebar", "Sidebar"),
         ("ctrl+t", "app.toggle_dark", "Toggle Dark mode"),
         ("ctrl+s", "app.screenshot()", "Screenshot"),
-        ("f1", "app.toggle_class('TextLog', '-hidden')", "Notes"),
+        ("f1", "app.toggle_class('Log', '-hidden')", "Notes"),
         Binding("ctrl+c,ctrl+q", "app.quit", "Quit", show=True),
     ]
 
     show_sidebar = reactive(False)
 
     def add_note(self, renderable: RenderableType) -> None:
-        self.query_one(TextLog).write(renderable)
+        self.query_one(Log).write(renderable)
 
     def show_note(self, renderable: RenderableType) -> None:
-        self.query_one(TextLog).clear()
-        self.query_one(TextLog).write(renderable)
-        self.query_one(TextLog).remove_class("-hidden")
+        self.query_one(Log).clear()
+        self.query_one(Log).write(renderable)
+        self.query_one(Log).remove_class("-hidden")
 
     def compose(self) -> ComposeResult:
-        example_css = Path(self.css_path[0]).read_text()
+        _example_css = Path(self.css_path[0]).read_text()
         yield Container(
             Sidebar(classes="-hidden"),
             Header(show_clock=False),
-            TextLog(classes="-hidden", wrap=False, highlight=True, markup=True),
+            Log(classes="-hidden"),
             Body(
                 QuickAccess(
                     LocationLink("TOP", ".location-top"),
@@ -1206,7 +1198,7 @@ def exec(pid, config, frida_api, info):
         with open("design.css", mode="w") as ff:
             for line in lines:
                 t = multiply_number(line, screen_ratio)
-                if t != False:
+                if t:
                     ff.write(t)
                 else:
                     ff.write(line)

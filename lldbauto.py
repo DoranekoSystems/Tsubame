@@ -1,7 +1,4 @@
 import socket
-import os
-import sys
-import re
 import time
 import threading
 import struct
@@ -154,8 +151,8 @@ class LLDBAutomation:
                     [
                         wp
                         for wp in self.wp_info_list
-                        if (wp["switch"] == True and wp["enabled"] == False)
-                        or (wp["switch"] == False and wp["enabled"] == True)
+                        if (wp["switch"] and not wp["enabled"])
+                        or (not wp["switch"] and wp["enabled"])
                     ]
                 )
                 > 0
@@ -223,9 +220,9 @@ class LLDBAutomation:
                         wp = [
                             wp for wp in self.wp_info_list if wp["address"] == medata
                         ][0]
-                        ret1 = self.remove_watchpoint(medata, wp["bpsize"], wp["type"])
-                        ret2 = self.step(threadid)
-                        ret3 = self.set_watchpoint(medata, wp["bpsize"], wp["type"])
+                        self.remove_watchpoint(medata, wp["bpsize"], wp["type"])
+                        self.step(threadid)
+                        self.set_watchpoint(medata, wp["bpsize"], wp["type"])
 
                     if not is_debugserver:
                         registers = self.get_register_info(threadid)
@@ -243,7 +240,7 @@ class LLDBAutomation:
                                         "<Q", bytes.fromhex(info[f"{i:02x}"])
                                     )[0]
 
-                            except Exception as e:
+                            except Exception:
                                 address = 0
                         else:
                             try:
@@ -251,7 +248,7 @@ class LLDBAutomation:
                                 address = struct.unpack("<Q", bytes.fromhex(string))[0]
                                 if i == 32:
                                     address -= 4
-                            except Exception as e:
+                            except Exception:
                                 address = 0
                         register_list.append(address)
 
@@ -272,7 +269,7 @@ class LLDBAutomation:
                 # set watchpoint
                 for i in range(4):
                     wp = self.wp_info_list[i]
-                    if wp["switch"] == True and wp["enabled"] == False:
+                    if wp["switch"] and not wp["enabled"]:
                         address = wp["address"]
                         size = wp["bpsize"]
                         _type = wp["type"]
@@ -287,7 +284,7 @@ class LLDBAutomation:
                 # remove watchpoint
                 for i in range(4):
                     wp = self.wp_info_list[i]
-                    if wp["switch"] == False and wp["enabled"] == True:
+                    if not wp["switch"] and wp["enabled"]:
                         address = wp["address"]
                         size = wp["bpsize"]
                         _type = wp["type"]

@@ -1,4 +1,3 @@
-from InquirerPy import prompt
 import frida
 import threading
 import time
@@ -38,17 +37,17 @@ def get_device():
 
 
 def main(package, pid=None, run_mode="medit", memoryview_address=None):
-    targetOS = config["general"]["targetOS"]
+    target_os = config["general"]["target_os"]
     mode = config["general"]["mode"]
     frida_server_ip = config["ipconfig"]["frida_server_ip"]
     binary_path = config["general"]["binary_path"]
 
-    if targetOS in [OS.ANDROID.value, OS.IOS.value]:
+    if target_os in [OS.ANDROID.value, OS.IOS.value]:
         if frida_server_ip != "":
             device = frida.get_device_manager().add_remote_device(frida_server_ip)
         else:
             device = get_device()
-        if pid == None:
+        if pid is None:
             apps = device.enumerate_applications()
             target = package
             for app in apps:
@@ -70,12 +69,12 @@ def main(package, pid=None, run_mode="medit", memoryview_address=None):
             device = frida.get_device_manager().add_remote_device(frida_server_ip)
         else:
             device = frida.get_remote_device()
-        if pid == None:
+        if pid is None:
             processes = device.enumerate_processes()
             target = package
             for process in processes:
                 if target == str(process.pid) or target == process.name:
-                    process_name = process.name
+                    _process_name = process.name
                     process_id = process.pid
                     break
             if mode == MODE.SPAWN.value:
@@ -114,7 +113,7 @@ if __name__ == "__main__":
     args = sys.argv
 
     target = config["general"]["target"]
-    targetOS = config["general"]["targetOS"]
+    target_os = config["general"]["target_os"]
     binary_path = config["general"]["binary_path"]
     run_mode = "medit"
     memoryview_address = None
@@ -122,7 +121,7 @@ if __name__ == "__main__":
         memoryview_address = int(args[args.index("--memoryview") + 1], 16)
         run_mode = "memoryview"
 
-    if targetOS in [OS.ANDROID.value, OS.IOS.value]:
+    if target_os in [OS.ANDROID.value, OS.IOS.value]:
         if target == "":
             if args[1] == "-p" or args[1] == "--pid":
                 pid = int(args[2])

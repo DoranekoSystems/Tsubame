@@ -1,19 +1,6 @@
-from InquirerPy import prompt
-import os
-import sys
-import time
 import re
-import struct
-from threading import Thread
-import subprocess
-import platform
 import bisect
 from sortedcontainers import SortedList
-from tqdm import tqdm
-import hexdump
-import lz4.block
-from define import OS, MODE
-from colorama import Fore, Back, Style
 import traceback
 import api
 import util
@@ -61,7 +48,7 @@ class Scanner:
 
     async def find(self, value, _type):
         try:
-            self.progress.update(f"find start!")
+            self.progress.update("find start!")
             await asyncio.sleep(0)
             self.scan_complete = False
             self.scan_value = value
@@ -91,7 +78,7 @@ class Scanner:
                     while remain_size > 0:
                         read_size = min(remain_size, self.rpm_max_size)
                         result = self.frida.readprocessmemory(tmp, read_size)
-                        if result != False:
+                        if result:
                             ret = result
                             if _type != "regex":
                                 sp = util.StructPack(value, _type)
@@ -119,7 +106,7 @@ class Scanner:
                         sp = util.StructPack(value, _type)
                         bytecode = sp.pack().hex()
                     addresses = self.frida.memoryscan(start, size, bytecode)
-                    if addresses != None:
+                    if addresses is not None:
                         for address in addresses:
                             ad = int(address["address"], 16)
                             sz = address["size"]
@@ -137,18 +124,18 @@ class Scanner:
                 )
             self.progress.update(f"complete => founds:{len(self.addresses)}")
             self.scan_complete = True
-        except Exception as e:
+        except Exception:
             self.scan_complete = True
-            self.progress.update(f"an error occured")
+            self.progress.update("an error occured")
             self.datatable.clear()
             self.add_note(traceback.format_exc())
 
     async def filter(self, value):
         try:
             if self.near_back != 0 or self.near_front != 0:
-                self.progress.update(f"nearby start!")
+                self.progress.update("nearby start!")
             else:
-                self.progress.update(f"filter start!")
+                self.progress.update("filter start!")
             await asyncio.sleep(0.05)
             self.scan_complete = False
             _type = self.scan_type
@@ -193,7 +180,7 @@ class Scanner:
                         while remain_size > 0:
                             read_size = min(remain_size, self.rpm_max_size)
                             result = self.frida.readprocessmemory(tmp, read_size)
-                            if result != False:
+                            if result:
                                 ret = result
                                 if _type != "regex":
                                     sp = util.StructPack(value, _type, self.arch)
@@ -234,7 +221,7 @@ class Scanner:
                             addresses = self.frida.memoryfilter(address_infos)
                         else:
                             addresses = self.frida.memoryscan(start, size, bytecode)
-                        if addresses != None:
+                        if addresses is not None:
                             r = [
                                 {
                                     "address": int(x["address"], 16),
@@ -264,9 +251,9 @@ class Scanner:
                 )
             self.progress.update(f"complete => founds:{len(self.addresses)}")
             self.scan_complete = True
-        except Exception as e:
+        except Exception:
             self.scan_complete = True
-            self.progress.update(f"an error occured")
+            self.progress.update("an error occured")
             self.datatable.clear()
             self.add_note(traceback.format_exc())
 
@@ -281,7 +268,7 @@ class MSScanner(Scanner):
 
     async def find(self, value, _type):
         try:
-            self.progress.update(f"find start!")
+            self.progress.update("find start!")
             await asyncio.sleep(0.05)
             self.scan_complete = False
             self.scan_value = value
@@ -306,7 +293,7 @@ class MSScanner(Scanner):
             result = self.memory_server.memoryscan(
                 bytecode, address_ranges, self.scan_type, self.scan_id, True
             )
-            if result != False:
+            if result:
                 for r in result["matched_addresses"]:
                     ad = r["address"]
                     if _type == "regex":
@@ -328,9 +315,9 @@ class MSScanner(Scanner):
                 )
             self.progress.update(f"complete => founds:{len(self.addresses)}")
             self.scan_complete = True
-        except Exception as e:
+        except Exception:
             self.scan_complete = True
-            self.progress.update(f"an error occured")
+            self.progress.update("an error occured")
             self.datatable.clear()
             self.add_note(traceback.format_exc())
 
@@ -340,7 +327,7 @@ class MSScanner(Scanner):
                 await super().filter(value)
                 return
             else:
-                self.progress.update(f"filter start!")
+                self.progress.update("filter start!")
             await asyncio.sleep(0.05)
             self.datatable.clear()
 
@@ -356,7 +343,7 @@ class MSScanner(Scanner):
             result = self.memory_server.memoryfilter(
                 bytecode, self.scan_type, self.scan_id, filter_method, True
             )
-            if result != False:
+            if result:
                 for r in result["matched_addresses"]:
                     ad = r["address"]
                     if self.scan_type == "regex":
@@ -378,8 +365,8 @@ class MSScanner(Scanner):
                 )
             self.progress.update(f"complete => founds:{len(self.addresses)}")
             self.scan_complete = True
-        except Exception as e:
+        except Exception:
             self.scan_complete = True
-            self.progress.update(f"an error occured")
+            self.progress.update("an error occured")
             self.datatable.clear()
             self.add_note(traceback.format_exc())
