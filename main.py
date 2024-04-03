@@ -6,6 +6,7 @@ import toml
 from define import OS, MODE
 import tsubame
 import os
+import re
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/memoryview")
 from hexview import memory_view_mode
@@ -13,6 +14,12 @@ from hexview import memory_view_mode
 with open("config.toml") as f:
     config = toml.loads(f.read())
 
+
+def parse_int(s):
+    if re.match(r"^0x[0-9a-fA-F]+$", s):
+        return int(s, 16)
+    else:
+        return int(s)
 
 def get_device():
     mgr = frida.get_device_manager()
@@ -124,13 +131,13 @@ if __name__ == "__main__":
     if target_os in [OS.ANDROID.value, OS.IOS.value]:
         if target == "":
             if args[1] == "-p" or args[1] == "--pid":
-                pid = int(args[2])
+                pid = parse_int(args[2])
                 main(None, pid, run_mode, memoryview_address)
             else:
                 main(args[1], None, run_mode, memoryview_address)
         else:
             if run_mode == "memoryview":
-                pid = int(args[2])
+                pid = parse_int(args[2])
                 main(None, pid, run_mode, memoryview_address)
             else:
                 main(target, None, run_mode, memoryview_address)
@@ -138,7 +145,7 @@ if __name__ == "__main__":
         if target == "":
             if binary_path == "":
                 if args[1] == "-p" or args[1] == "--pid":
-                    pid = int(args[2])
+                    pid = parse_int(args[2])
                     main(None, pid, run_mode, memoryview_address)
                 else:
                     main(args[1], None, run_mode, memoryview_address)
@@ -146,7 +153,7 @@ if __name__ == "__main__":
                 main("", None, run_mode, memoryview_address)
         else:
             if run_mode == "memoryview":
-                pid = int(args[2])
+                pid = parse_int(args[2])
                 main(None, pid, run_mode, memoryview_address)
             else:
                 main(target, None, run_mode, memoryview_address)

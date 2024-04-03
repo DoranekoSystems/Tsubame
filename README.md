@@ -17,19 +17,7 @@ pip install -r requirements_windows.txt
 pip install -r requirements_mac.txt
 ```
 
-Install and start frida-server.
-
-```
-python main.py Cydia
-
-# or
-
-python main.py com.saurik.Cydia
-
-# or
-
-python main.py -p ProcessId
-```
+[[Wiki]How to Use](https://github.com/DoranekoSystems/Tsubame/wiki/How-to-Use)
 
 # License
 
